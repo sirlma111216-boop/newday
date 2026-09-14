@@ -1,0 +1,21 @@
+.cloud-gate { min-height: 75dvh; display: grid; place-items: center; padding: 24px; background: var(--clay-canvas); }
+.cloud-login { width: min(100%, 440px); background: var(--clay-surface-card); border: 1px solid var(--border); border-radius: 24px; padding: 32px; }
+.cloud-login > svg { color: var(--clay-teal); }
+.cloud-login h1 { font-size: 28px; margin: 16px 0; }
+.cloud-login p { line-height: 1.7; overflow-wrap: anywhere; }
+.cloud-login > button { margin: 12px 0; width: 100%; justify-content: center; min-height: 44px; }
+.cloud-account { min-height: 44px; display: flex; align-items: center; gap: 16px; padding: 4px 24px; background: var(--clay-teal); color: #fffaf0; font-size: 13px; }
+.cloud-account > span { display: flex; gap: 8px; align-items: center; min-width: 0; overflow-wrap: anywhere; }
+.cloud-account > button { margin-left: auto; background: #fffaf0; color: #0a0a0a; min-height: 32px; padding: 4px 10px; flex-shrink: 0; }
+.cloud-account details { position: relative; flex-shrink: 0; }
+.cloud-account summary { cursor: pointer; padding: 8px 0; }
+.cloud-account details > div { position: absolute; z-index: 50; width: min(300px, 85vw); right: 0; padding: 16px; background: #fffaf0; color: #0a0a0a; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 12px #0002; }
+.cloud-account code { overflow-wrap: anywhere; font-size: 12px; user-select: all; }
+.editor-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+button:disabled { cursor: wait; opacity: .6; }
+@media (max-width: 600px) {
+  .cloud-account { padding: 8px 12px; gap: 10px; flex-wrap: wrap; }
+  .cloud-account > span { flex-basis: 100%; }
+  .cloud-account details > div { left: 0; right: auto; }
+  .cloud-login { padding: 24px; }
+}
