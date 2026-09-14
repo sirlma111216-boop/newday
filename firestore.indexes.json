@@ -1,0 +1,6 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "calendar", "fieldPath": "payload", "indexes": [] }
+  ]
+}
