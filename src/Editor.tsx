@@ -11,7 +11,23 @@ export function Modal({ title, children, onClose, wide = false }: { title: strin
   </dialog>;
 }
 
-export function Editor({ data, event, onSave, onClose, mode = 'modal', onDelete }: { data: Data; event: Schedule; onSave: (event: Schedule, task: Task) => Promise<boolean>; onClose: () => void; mode?: 'modal' | 'panel'; onDelete?: () => void }) {
+// 원노트 단락 링크는 onenote: 주소로도, 학교 SharePoint·OneDrive의 https 주소로도 복사됩니다.
+function isOneNoteLink(url: string) {
+  const value = url.toLowerCase();
+  return value.startsWith('onenote:') || value.includes('onenote') || value.includes('.one') || value.includes('sharepoint.com') || value.includes('onedrive.live.com') || value.includes('docs.live.net');
+}
+
+function OneNoteIcon({ size = 18 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <rect x="2.4" y="2.5" width="13.6" height="19" rx="2.2" fill="#7719AA"/>
+    <path d="M6.1 17.3V6.7h2.1l3.9 6.2V6.7h2.1v10.6h-2.1l-3.9-6.2v6.2z" fill="#fff"/>
+    <rect x="16.8" y="5.3" width="4.8" height="4.2" rx="1.2" fill="#C48EDD"/>
+    <rect x="16.8" y="9.9" width="4.8" height="4.2" rx="1.2" fill="#A65FCB"/>
+    <rect x="16.8" y="14.5" width="4.8" height="4.2" rx="1.2" fill="#8534B5"/>
+  </svg>;
+}
+
+export function Editor({ data, event, onSave, onClose, mode = 'modal', onDelete }:{ data: Data; event: Schedule; onSave: (event: Schedule, task: Task) => Promise<boolean>; onClose: () => void; mode?: 'modal' | 'panel'; onDelete?: () => void }) {
   const existing = data.events.some(e => e.id === event.id);
   const [draft, setDraft] = useState({ ...event });
   const [task, setTask] = useState<Task>(() => structuredClone(data.tasks.find(t => t.id === event.taskId) || blankTask()));
@@ -58,7 +74,6 @@ export function Editor({ data, event, onSave, onClose, mode = 'modal', onDelete 
       setError(links[badLink].name
         ? `자료 링크 ${badLink + 1} ‘${links[badLink].name}’의 주소를 확인해 주세요. https: 또는 onenote: 로 시작하는 주소만 저장할 수 있습니다.`
         : `자료 링크 ${badLink + 1}의 표시 이름을 입력해 주세요.`);
-      setAdvanced(true);
       return;
     }
     if (task.checklist.some(item => !item.text.trim())) { setError('준비할 일을 입력하거나 빈 항목을 삭제해 주세요.'); return; }
@@ -78,8 +93,9 @@ export function Editor({ data, event, onSave, onClose, mode = 'modal', onDelete 
     </div>
     <p className="help">종료일까지 포함해서 달력에 표시합니다.</p>
     <div className="category-choices" role="group" aria-label="분류 선택">{CATEGORIES.map((category, index) => <button type="button" key={category} className={`cat-${index}`} aria-pressed={task.category === category} onClick={() => changeTask({ category })}><span className="category-dot"/>{category}</button>)}</div>
+    <section className="form-section"><h3><Link2 size={17}/>관련 자료</h3>{task.links.map((link, index) => <div className="link-edit" key={link.id}><div><input aria-label={`링크 ${index + 1} 표시 이름`} placeholder="표시 이름" maxLength={300} value={link.name} onChange={e => changeTask({ links: task.links.map(item => item.id === link.id ? { ...item, name: e.currentTarget.value } : item) })}/><input aria-label={`링크 ${index + 1} 주소`} placeholder="https:// 또는 onenote:" maxLength={10000} value={link.url} onChange={e => changeTask({ links: task.links.map(item => item.id === link.id ? { ...item, url: e.currentTarget.value } : item) })}/></div>{safeLink(link.url.trim()) && <a className="icon-button" href={link.url.trim()} target={link.url.trim().toLowerCase().startsWith('https:') ? '_blank' : undefined} rel="noopener noreferrer" aria-label={`링크 ${index + 1} 열기`} title="링크 열기">{isOneNoteLink(link.url.trim()) ? <OneNoteIcon size={20}/> : <ExternalLink size={17}/>}</a>}<button type="button" className="icon-button" aria-label={`링크 ${index + 1} 삭제`} onClick={() => changeTask({ links: task.links.filter(item => item.id !== link.id) })}><Trash2 size={16}/></button></div>)}<button type="button" className="text-button" onClick={() => changeTask({ links: [...task.links, { id: uid(), name: '', url: '' }] })}><Plus size={16}/>링크 추가</button><p className="help">원노트에서 ‘단락 링크 복사’ 후 원래 주소 전체를 붙여 넣으세요.<br/>원노트 설치 및 접근 권한에 따라 열리는 방식이 달라질 수 있습니다.</p></section>
 
-    <button type="button" className="advanced-toggle" onClick={() => setAdvanced(!advanced)} aria-expanded={advanced}><ChevronDown size={17} className={advanced ? 'rotate' : ''}/>{advanced ? '세부 내용 접기' : '세부 내용 더 보기'}<span>시간 · 관련 업무 · 메모 · 자료 · 알림</span></button>
+    <button type="button" className="advanced-toggle" onClick={() => setAdvanced(!advanced)} aria-expanded={advanced}><ChevronDown size={17} className={advanced ? 'rotate' : ''}/>{advanced ? '세부 내용 접기' : '세부 내용 더 보기'}<span>시간 · 관련 업무 · 메모 · 알림</span></button>
     {advanced && <>
       <section className="form-section simple-options">
         <label className="check-label"><input type="checkbox" checked={draft.allDay} onChange={e => update({ allDay: e.target.checked })}/>시간을 정하지 않은 종일 일정</label>
@@ -106,7 +122,6 @@ export function Editor({ data, event, onSave, onClose, mode = 'modal', onDelete 
       </section>
 
       <section className="form-section"><h3>메모</h3><label className="field"><span className="visually-hidden">메모</span><textarea aria-label="메모" rows={4} maxLength={10000} placeholder="공문에서 확인할 내용이나 처리 방법을 적어 두세요" value={task.memo} onChange={e => changeTask({ memo: e.currentTarget.value })}/></label></section>
-      <section className="form-section"><h3><Link2 size={17}/>관련 자료</h3>{task.links.map((link, index) => <div className="link-edit" key={link.id}><div><input aria-label={`링크 ${index + 1} 표시 이름`} placeholder="표시 이름" maxLength={300} value={link.name} onChange={e => changeTask({ links: task.links.map(item => item.id === link.id ? { ...item, name: e.currentTarget.value } : item) })}/><input aria-label={`링크 ${index + 1} 주소`} placeholder="https:// 또는 onenote:" maxLength={10000} value={link.url} onChange={e => changeTask({ links: task.links.map(item => item.id === link.id ? { ...item, url: e.currentTarget.value } : item) })}/></div>{safeLink(link.url.trim()) && <a className="icon-button" href={link.url.trim()} target={link.url.trim().toLowerCase().startsWith('https:') ? '_blank' : undefined} rel="noopener noreferrer" aria-label={`링크 ${index + 1} 열기`}><ExternalLink size={16}/></a>}<button type="button" className="icon-button" aria-label={`링크 ${index + 1} 삭제`} onClick={() => changeTask({ links: task.links.filter(item => item.id !== link.id) })}><Trash2 size={16}/></button></div>)}<button type="button" className="text-button" onClick={() => changeTask({ links: [...task.links, { id: uid(), name: '', url: '' }] })}><Plus size={16}/>링크 추가</button><p className="help">원노트에서 ‘단락 링크 복사’ 후 원래 주소 전체를 붙여 넣으세요.<br/>원노트 설치 및 접근 권한에 따라 열리는 방식이 달라질 수 있습니다.</p></section>
       <section className="form-section"><h3><CheckSquare size={17}/>준비할 일</h3>{task.checklist.map((item, index) => <div className={'check-edit ' + (item.done ? 'checked' : '')} key={item.id}><input type="checkbox" aria-label={`준비 ${index + 1} 완료`} checked={item.done} onChange={e => changeTask({ checklist: task.checklist.map(check => check.id === item.id ? { ...check, done: e.target.checked } : check) })}/><input aria-label={`준비 ${index + 1} 내용`} maxLength={1000} value={item.text} placeholder="준비할 일" onChange={e => changeTask({ checklist: task.checklist.map(check => check.id === item.id ? { ...check, text: e.currentTarget.value } : check) })}/><button type="button" className="icon-button" aria-label={`준비 ${index + 1} 삭제`} onClick={() => changeTask({ checklist: task.checklist.filter(check => check.id !== item.id) })}><Trash2 size={16}/></button></div>)}<button type="button" className="text-button" onClick={() => changeTask({ checklist: [...task.checklist, { id: uid(), text: '', done: false }] })}><Plus size={16}/>준비할 일 추가</button><p className="help">체크한 항목에만 완료선이 표시됩니다.</p></section>
       <section className="form-section"><h3>알림</h3><label className="field">알림 기준<select aria-label="알림 기준" value={draft.reminderBase} onChange={e => update({ reminderBase: e.currentTarget.value as 'start' | 'end' })}><option value="start">시작일</option><option value="end">종료일</option></select></label><div className="reminder-options">{REMINDERS.map(reminder => <label key={reminder.value}><input type="checkbox" checked={draft.reminders.includes(reminder.value)} onChange={() => update({ reminders: draft.reminders.includes(reminder.value) ? draft.reminders.filter(value => value !== reminder.value) : [...draft.reminders, reminder.value] })}/>{reminder.label}</label>)}</div><p className="help">서울 시간 기준 · 종일 일정은 시작일 09:00 / 종료일 23:59 기준입니다.</p></section>
     </>}

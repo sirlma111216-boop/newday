@@ -390,3 +390,6 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
 .panel-actions{justify-content:space-between}
 .panel-actions .danger-solid{gap:6px}
 .edit-panel .form-body{padding-bottom:16px}
+.link-edit{align-items:center}
+.link-edit a.icon-button{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:6px;border-radius:var(--clay-radius-pill)}
+.link-edit a.icon-button:hover{background:var(--clay-surface-card)}
