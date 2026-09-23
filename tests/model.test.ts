@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultSettings, fallbackCategory, schoolHolidayOn, validateSchoolHoliday, addDays, calendarDays, seedData, weekSegments, dayDiff, seoulToday, blankEvent, blankTask, dueNotices, eventTimestamp, validateEvent, safeLink, filteredEvents, cancelPending, type Data } from '../src/model.ts';
+import { defaultSettings, fallbackCategory, schoolHolidayOn, validateSchoolHoliday, addDays, calendarDays, seedData, weekSegments, dayDiff, seoulToday, blankEvent, blankTask, dueNotices, eventTimestamp, validateEvent, safeLink, filteredEvents, searchEvents, cancelPending, type Data } from '../src/model.ts';
 import { parseBackup, loadData, saveData } from '../src/storage.ts';
 test('서울 날짜는 UTC와 구별되며 윤년과 월 경계에서 날짜 계산이 정확하다', () => { assert.equal(seoulToday(new Date('2026-09-12T16:00:00Z')), '2026-09-13'); assert.equal(addDays('2024-02-28', 1), '2024-02-29'); assert.equal(addDays('2026-12-31', 1), '2027-01-01'); assert.equal(dayDiff('2026-10-02', '2026-09-29'), 3); });
 test('월간은 일요일 시작, 토요일 종료이며 마지막 날짜까지 포함한다', () => { for (const month of ['2026-02-01', '2026-05-01', '2026-09-01']) { const d = calendarDays(month); assert.equal(d.length % 7, 0); assert.equal(new Date(d[0] + 'T00:00Z').getUTCDay(), 0); assert.equal(new Date(d.at(-1)! + 'T00:00Z').getUTCDay(), 6); } });
@@ -68,4 +68,41 @@ test('학교 지정 휴일은 기간으로 저장되고 하루 단위로 조회�
 
   const data = { ...seedData('2026-09-21'), settings };
   assert.deepEqual(parseBackup(JSON.parse(JSON.stringify(data))).settings.holidays, settings.holidays);
+});
+
+test('검색은 달력을 거르지 않고 이동할 목록만 만들며 다가오는 일정을 먼저 보여 준다', () => {
+  const today = '2026-09-13';
+  const data = seedData(today);
+
+  // 검색어를 넣어도 달력에 보이는 일정 수는 그대로다.
+  const all = filteredEvents(data, '', [...data.settings.categories.map(c => c.name)], false);
+  assert.equal(all.length, data.events.length);
+
+  // 제목·업무명·메모·준비할 일·링크 이름까지 찾는다.
+  assert.ok(searchEvents(data, '수업안', today).total >= 2);
+  assert.equal(searchEvents(data, '서류 확인', today).total, 3);
+  assert.equal(searchEvents(data, 'OneNote 이용 안내', today).total, 3);
+  assert.equal(searchEvents(data, '', today).total, 0);
+  assert.deepEqual(searchEvents(data, '   ', today).rows, []);
+  assert.equal(searchEvents(data, '존재하지않는일정', today).total, 0);
+
+  // 분류 필터를 꺼 두어도 검색으로는 찾을 수 있어야 한다.
+  const hidden = searchEvents(data, '학습자료', today);
+  assert.equal(hidden.total, 1);
+
+  // 다가오는 일정이 먼저, 지난 일정은 최근 것부터 온다.
+  const rows = searchEvents(data, '예시', today).rows;
+  const border = rows.findIndex(e => e.end < today);
+  if (border > 0) {
+    const upcoming = rows.slice(0, border);
+    const past = rows.slice(border);
+    for (let i = 1; i < upcoming.length; i++) assert.ok(upcoming[i - 1].start <= upcoming[i].start);
+    for (let i = 1; i < past.length; i++) assert.ok(past[i - 1].start >= past[i].start);
+    assert.ok(upcoming.every(e => e.end >= today));
+  }
+
+  // 목록 길이는 limit 으로 제한하되 총 개수는 그대로 알려 준다.
+  const limited = searchEvents(data, '예시', today, 3);
+  assert.equal(limited.rows.length, 3);
+  assert.ok(limited.total > 3);
 });

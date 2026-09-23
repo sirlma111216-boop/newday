@@ -424,3 +424,18 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
 /* 날짜 칸에 휴일 이름 줄이 생기므로 일정 막대가 시작하는 위치를 내린다. */
 .event-grid{padding-top:48px}
 .holiday-name{font-size:11px}
+
+/* 검색창 안쪽에 초점 테두리가 한 겹 더 생기던 문제 ─ 테두리는 바깥 칸에만 준다. */
+.search input:focus-visible{outline:none}
+.search:focus-within{border-color:var(--clay-ink);box-shadow:0 0 0 1px var(--clay-ink)}
+
+/* 검색 결과 목록 */
+.search-box{position:relative;display:flex;align-items:center}
+.search-results{position:absolute;top:calc(100% + 6px);left:0;width:min(420px,calc(100vw - 28px));background:var(--clay-canvas);border:1px solid var(--border);border-radius:var(--clay-radius-lg);box-shadow:0 18px 48px color-mix(in srgb,var(--clay-ink) 14%,transparent);padding:6px;z-index:40;max-height:min(60vh,420px);overflow-y:auto}
+.search-results .search-hint{padding:8px 10px;font-size:12px;color:var(--clay-muted)}
+.search-result{width:100%;border:0;background:transparent;display:flex;align-items:center;gap:10px;text-align:left;padding:9px 10px;border-radius:var(--clay-radius-md);min-height:44px}
+.search-result:hover,.search-result.active{background:var(--clay-surface-card)}
+.search-result .search-date{min-width:82px;font-size:12px;color:var(--clay-body);white-space:nowrap}
+.search-result .search-main{flex:1;min-width:0}
+.search-result .search-main strong{display:block;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.search-result .search-main small{display:block;font-size:11px;color:var(--clay-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

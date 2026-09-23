@@ -73,3 +73,18 @@ export function fallbackCategory(settings: Settings) { return settings.categorie
 export function schoolHolidayOn(settings: Settings, date: string) { return settings.holidays.find(h => h.start <= date && date <= h.end); }
 export function validateSchoolHoliday(holiday: SchoolHoliday) { if (!holiday.name.trim()) return '휴일 명칭을 입력해 주세요.'; if (!validDate(holiday.start) || !validDate(holiday.end)) return '올바른 날짜를 입력해 주세요. (1900~2200년)'; if (holiday.start > holiday.end) return '종료일은 시작일과 같거나 이후여야 합니다.'; return ''; }
 export function blankSchoolHoliday(date = seoulToday()): SchoolHoliday { return { id: uid(), name: '', start: date, end: date }; }
+// 검색은 달력을 걸러 내지 않고, 눌러서 그 날짜로 이동할 목록만 만든다.
+// 다가오는 일정을 먼저, 지난 일정은 최근 것부터 보여 준다.
+export function searchEvents(data: Data, query: string, today = seoulToday(), limit = 12) {
+  const q = query.trim().toLocaleLowerCase();
+  if (!q) return { total: 0, rows: [] as Schedule[] };
+  const matched = data.events.filter(event => {
+    const task = data.tasks.find(t => t.id === event.taskId);
+    if (!task) return false;
+    return [event.title, task.name, task.memo, ...task.checklist.map(c => c.text), ...task.links.map(l => l.name)].join(' ').toLocaleLowerCase().includes(q);
+  });
+  const order = (a: Schedule, b: Schedule) => a.start.localeCompare(b.start) || a.startTime.localeCompare(b.startTime);
+  const upcoming = matched.filter(e => e.end >= today).sort(order);
+  const past = matched.filter(e => e.end < today).sort((a, b) => order(b, a));
+  return { total: matched.length, rows: [...upcoming, ...past].slice(0, limit) };
+}
