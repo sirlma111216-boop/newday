@@ -23,15 +23,20 @@ function writeCache(cache: Record<string, Cached>) {
   try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch { /* 저장 공간이 없어도 화면은 계속 동작한다. */ }
 }
 
-async function fetchFromGoKr(year: number, key: string): Promise<Holiday[]> {
-  const url = `${GO_KR}?solYear=${year}&numOfRows=100&_type=json&ServiceKey=${encodeURIComponent(key)}`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? '인증키가 올바르지 않거나 아직 승인되지 않았습니다.' : `공공데이터포털이 ${response.status} 오류를 반환했습니다.`);
-  const text = await response.text();
-  // 키가 잘못되면 200 응답에 XML 오류 문서가 오는 경우가 있다.
-  if (text.trim().startsWith('<')) throw new Error('인증키를 확인해 주세요. 공공데이터포털이 오류 문서를 반환했습니다.');
-  const body = JSON.parse(text)?.response?.body;
-  const raw = body?.items?.item;
+// 공공데이터포털은 오류를 200 응답에 XML 로 돌려주기도 한다. 원인을 사람이 읽을 수 있게 바꾼다.
+function goKrError(text: string) {
+  const code = /<returnReasonCode>(.*?)<\/returnReasonCode>/.exec(text)?.[1] ?? '';
+  const message = (/<returnAuthMsg>(.*?)<\/returnAuthMsg>/.exec(text) ?? /<errMsg>(.*?)<\/errMsg>/.exec(text))?.[1] ?? '';
+  const combined = `${message} ${code}`.toUpperCase();
+  if (combined.includes('SERVICE_KEY_IS_NOT_REGISTERED') || code === '30') return '아직 등록되지 않은 인증키입니다. 방금 발급받았다면 반영까지 시간이 걸릴 수 있으니 조금 뒤에 다시 눌러 주세요.';
+  if (combined.includes('LIMITED_NUMBER_OF_SERVICE_REQUESTS') || code === '22') return '오늘 호출 한도를 넘었습니다. 내일 다시 시도해 주세요.';
+  if (combined.includes('SERVICE_ACCESS_DENIED') || code === '20') return '이 서비스에 대한 활용 신청이 승인되지 않았습니다. 공공데이터포털에서 승인 상태를 확인해 주세요.';
+  if (combined.includes('DEADLINE_HAS_EXPIRED') || code === '31') return '인증키 사용 기간이 만료되었습니다. 공공데이터포털에서 연장해 주세요.';
+  return message ? `공공데이터포털 오류: ${message}` : '인증키를 확인해 주세요. 공공데이터포털이 오류를 반환했습니다.';
+}
+
+function mapGoKrItems(body: Record<string, unknown> | undefined): Holiday[] {
+  const raw = (body?.items as Record<string, unknown> | undefined)?.item;
   const items = Array.isArray(raw) ? raw : raw ? [raw] : [];
   return items
     .filter((item: Record<string, unknown>) => String(item.isHoliday ?? 'Y').toUpperCase() === 'Y')
@@ -40,6 +45,27 @@ async function fetchFromGoKr(year: number, key: string): Promise<Holiday[]> {
       return { date: `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`, name: String(item.dateName ?? '공휴일').trim() };
     })
     .filter((holiday: Holiday) => /^\d{4}-\d{2}-\d{2}$/.test(holiday.date));
+}
+
+async function fetchFromGoKr(year: number, key: string): Promise<Holiday[]> {
+  // 특일 정보 문서는 판에 따라 serviceKey 와 ServiceKey 를 섞어 쓰므로 둘 다 시도한다.
+  let failure = '';
+  for (const param of ['serviceKey', 'ServiceKey'] as const) {
+    const response = await fetch(`${GO_KR}?solYear=${year}&numOfRows=100&_type=json&${param}=${encodeURIComponent(key)}`);
+    if (!response.ok) {
+      failure = response.status === 401 || response.status === 403
+        ? '인증키가 올바르지 않거나 아직 승인되지 않았습니다.'
+        : `공공데이터포털이 ${response.status} 오류를 반환했습니다.`;
+      continue;
+    }
+    const text = await response.text();
+    if (text.trim().startsWith('<')) { failure = goKrError(text); continue; }
+    const parsed = JSON.parse(text)?.response;
+    const resultCode = String(parsed?.header?.resultCode ?? '00');
+    if (resultCode !== '00' && resultCode !== '0') { failure = `공공데이터포털 오류: ${parsed?.header?.resultMsg ?? resultCode}`; continue; }
+    return mapGoKrItems(parsed?.body);
+  }
+  throw new Error(failure || '공휴일 정보를 불러오지 못했습니다.');
 }
 
 async function fetchFromNager(year: number): Promise<Holiday[]> {
