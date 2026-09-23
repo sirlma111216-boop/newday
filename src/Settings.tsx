@@ -1,14 +1,18 @@
-import { useState } from 'react';
-import { Plus, Trash2, User, CalendarOff, Tags, Check } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Plus, Trash2, User, CalendarOff, Tags, Check, CalendarDays, Bell } from 'lucide-react';
 import { Modal } from './Editor';
 import { loadHolidays } from './holidays';
-import { CATEGORY_COLORS, FALLBACK_CATEGORY, blankSchoolHoliday, categoryStyle, seoulToday, uid, validateSchoolHoliday, type CategoryDef, type Data, type SchoolHoliday, type Settings as SettingsData } from './model';
+import { NotificationSettings } from './Panels';
+import { CATEGORY_COLORS, FALLBACK_CATEGORY, defaultCalendarPrefs, type CalendarPrefs, type Schedule, blankSchoolHoliday, categoryStyle, seoulToday, uid, validateSchoolHoliday, type CategoryDef, type Data, type SchoolHoliday, type Settings as SettingsData } from './model';
 
-type Tab = 'profile' | 'holiday' | 'category';
+export type SettingsTab = 'profile' | 'calendar' | 'holiday' | 'category' | 'notice';
 
-export function SettingsDialog({ data, onClose, onSave, toast }: { data: Data; onClose: () => void; onSave: (settings: SettingsData, renames: Record<string, string>) => Promise<boolean>; toast: (message: string) => void }) {
-  const [tab, setTab] = useState<Tab>('profile');
+export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, commit, onOpen, onTest, toast }: { data: Data; initialTab?: SettingsTab; onClose: () => void; onSave: (settings: SettingsData, renames: Record<string, string>) => Promise<boolean>; commit: (data: Data, recovery?: boolean) => Promise<boolean>; onOpen: (id: string) => void; onTest: (event: Schedule) => void; toast: (message: string) => void }) {
+  const [tab, setTab] = useState<SettingsTab>(initialTab);
   const [draft, setDraft] = useState<SettingsData>(() => structuredClone(data.settings));
+  // 좁은 화면에서는 탭이 가로로 넘치므로, 고른 탭이 화면 밖에 남지 않게 끌어온다.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { tabsRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }, [tab]);
   // 분류 이름을 바꿔도 업무가 따라오도록 '원래 이름 → 현재 이름'을 들고 있는다.
   const [renames, setRenames] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
@@ -17,7 +21,10 @@ export function SettingsDialog({ data, onClose, onSave, toast }: { data: Data; o
   const [keyResult, setKeyResult] = useState('');
 
   const update = (values: Partial<SettingsData>) => { setError(''); setDraft(previous => ({ ...previous, ...values })); };
-  const changeProfile = (values: Partial<SettingsData['profile']>) => update({ profile: { ...draft.profile, ...values } });
+  const prefs = draft.calendar ?? defaultCalendarPrefs();
+  // 이전 상태에서 이어받아야 연달아 바꿀 때 앞의 변경이 덮어써지지 않는다.
+  const changeCalendar = (values: Partial<CalendarPrefs>) => { setError(''); setDraft(previous => ({ ...previous, calendar: { ...(previous.calendar ?? defaultCalendarPrefs()), ...values } })); };
+  const changeProfile = (values: Partial<SettingsData['profile']>) => { setError(''); setDraft(previous => ({ ...previous, profile: { ...previous.profile, ...values } })); };
   const usage = (name: string) => data.tasks.filter(t => t.category === name).length;
 
   function renameCategory(category: CategoryDef, name: string) {
@@ -63,10 +70,12 @@ export function SettingsDialog({ data, onClose, onSave, toast }: { data: Data; o
   }
 
   return <Modal title="설정" onClose={onClose} wide>
-    <div className="settings-tabs" role="tablist">
+    <div className="settings-tabs" role="tablist" ref={tabsRef}>
       <button role="tab" aria-selected={tab === 'profile'} className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}><User size={16}/>개인정보</button>
+      <button role="tab" aria-selected={tab === 'calendar'} className={tab === 'calendar' ? 'active' : ''} onClick={() => setTab('calendar')}><CalendarDays size={16}/>달력</button>
       <button role="tab" aria-selected={tab === 'holiday'} className={tab === 'holiday' ? 'active' : ''} onClick={() => setTab('holiday')}><CalendarOff size={16}/>휴일</button>
       <button role="tab" aria-selected={tab === 'category'} className={tab === 'category' ? 'active' : ''} onClick={() => setTab('category')}><Tags size={16}/>분류</button>
+      <button role="tab" aria-selected={tab === 'notice'} className={tab === 'notice' ? 'active' : ''} onClick={() => setTab('notice')}><Bell size={16}/>알림</button>
     </div>
 
     <div className="modal-content">
@@ -78,10 +87,22 @@ export function SettingsDialog({ data, onClose, onSave, toast }: { data: Data; o
         <label className="field">메모<textarea rows={3} maxLength={2000} value={draft.profile.note} placeholder="내선 번호나 업무 인수인계 메모 등" onChange={e => changeProfile({ note: e.currentTarget.value })}/></label>
       </>}
 
+      {tab === 'calendar' && <>
+        <p className="help">달력을 보기 편한 모양으로 맞춰 보세요. 저장하면 이 기기와 계정 모두에 적용됩니다.</p>
+        <Choice label="주 시작 요일" value={prefs.weekStart} onPick={v => changeCalendar({ weekStart: v })} options={[[0, '일요일'], [1, '월요일']]}/>
+        <Choice label="칸 높이" value={prefs.density} onPick={v => changeCalendar({ density: v })} options={[['compact', '좁게'], ['normal', '보통'], ['roomy', '넓게']]}/>
+        <Choice label="글자 크기" value={prefs.fontScale} onPick={v => changeCalendar({ fontScale: v })} options={[['small', '작게'], ['normal', '보통'], ['large', '크게']]}/>
+        <Choice label="글꼴" value={prefs.fontFamily} onPick={v => changeCalendar({ fontFamily: v })} options={[['default', '기본'], ['system', '시스템'], ['malgun', '맑은 고딕'], ['nanum', '나눔고딕']]}/>
+        <Choice label="한 칸에 표시" value={prefs.maxPerCell} onPick={v => changeCalendar({ maxPerCell: v })} options={[[2, '2개'], [3, '3개'], [4, '4개'], [5, '5개'], [6, '6개']]}/>
+        <Choice label="토요일 색" value={prefs.saturdayColor} onPick={v => changeCalendar({ saturdayColor: v })} options={[['blue', '파란색'], ['red', '빨간색']]}/>
+        <Choice label="기본 보기" value={prefs.defaultView} onPick={v => changeCalendar({ defaultView: v })} options={[['auto', '자동'], ['calendar', '월간'], ['list', '목록']]}/>
+        <p className="help">‘자동’은 화면이 좁으면 목록, 넓으면 월간으로 엽니다. 일요일과 공휴일은 항상 빨간색으로 표시합니다.</p>
+      </>}
+
       {tab === 'holiday' && <>
         <section className="settings-section">
           <h3>공휴일 자동 연동</h3>
-          <p className="help">법정 공휴일과 토·일요일은 달력에 빨간색으로 표시하고, 공휴일은 무슨 날인지 이름도 함께 보여 줍니다. 해가 바뀌면 그 해 공휴일을 자동으로 다시 불러옵니다.</p>
+          <p className="help">법정 공휴일과 일요일은 달력에 빨간색으로 표시하고, 공휴일은 무슨 날인지 이름도 함께 보여 줍니다. 토요일 색은 달력 탭에서 고를 수 있습니다. 해가 바뀌면 그 해 공휴일을 자동으로 다시 불러옵니다.</p>
           <label className="field">공공데이터포털 인증키
             <input maxLength={500} value={draft.holidayKey} placeholder="비워 두면 무인증 공개 자료를 사용합니다" onChange={e => update({ holidayKey: e.currentTarget.value })}/>
           </label>
@@ -130,11 +151,22 @@ export function SettingsDialog({ data, onClose, onSave, toast }: { data: Data; o
       {error && <p className="form-error" role="alert">{error}</p>}
     </div>
 
+    {tab === 'notice' && <NotificationSettings data={data} commit={commit} onClose={onClose} onOpen={onOpen} onTest={onTest} toast={toast}/>}
+
     <div className="modal-actions">
       <button type="button" disabled={saving} onClick={onClose}>취소</button>
       <button type="button" className="primary" disabled={saving} onClick={submit}>{saving ? '저장 중…' : '설정 저장'}</button>
     </div>
   </Modal>;
+}
+
+function Choice<T extends string | number>({ label, value, options, onPick }: { label: string; value: T; options: [T, string][]; onPick: (value: T) => void }) {
+  return <div className="pref-row">
+    <span>{label}</span>
+    <div className="pref-choices" role="group" aria-label={label}>
+      {options.map(([option, text]) => <button type="button" key={String(option)} aria-pressed={value === option} onClick={() => onPick(option)}>{text}</button>)}
+    </div>
+  </div>;
 }
 
 export type { SchoolHoliday };

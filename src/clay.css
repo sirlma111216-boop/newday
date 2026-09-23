@@ -439,3 +439,39 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
 .search-result .search-main{flex:1;min-width:0}
 .search-result .search-main strong{display:block;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .search-result .search-main small{display:block;font-size:11px;color:var(--clay-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── 달력 표시 설정 ───────────────────────────────── */
+/* 주 시작 요일을 바꿀 수 있으므로 요일 색은 칸 위치가 아니라 실제 요일로 정한다. */
+.weekdays span:first-child,.weekdays span:last-child{color:var(--clay-body)}
+.weekdays span.sun{color:#c2453c}
+.weekdays span.sat{color:var(--sat-color,#4f7cb5)}
+.day:first-child{background:transparent}
+.day.sun{background:var(--clay-surface-soft)}
+.day:first-child .day-number,.day:last-child .day-number{color:var(--clay-body)}
+.day.sat .day-number{color:var(--sat-color,#4f7cb5)}
+.day.sun .day-number{color:#c2453c}
+.day.muted .day-number{color:var(--clay-muted)}
+.day.rest-day .day-number{color:#c2453c}
+.day.rest-day .day-number.today{color:#fff!important}
+
+/* 칸 높이와 글자 크기는 설정에서 내려온 변수를 따른다. */
+.week{min-height:var(--week-min-height,156px)}
+.weekdays{font-size:calc(13px * var(--cal-font-scale,1))}
+.day-number{font-size:calc(13px * var(--cal-font-scale,1))}
+.event-grid{grid-auto-rows:calc(25px * var(--cal-font-scale,1))}
+.event-title{font-size:calc(13px * var(--cal-font-scale,1));line-height:calc(25px * var(--cal-font-scale,1))}
+.event-time{font-size:calc(12px * var(--cal-font-scale,1))}
+.more-events{font-size:calc(12px * var(--cal-font-scale,1));line-height:calc(25px * var(--cal-font-scale,1))}
+.holiday-name{font-size:calc(11px * var(--cal-font-scale,1))}
+.list-main strong{font-size:calc(15px * var(--cal-font-scale,1))}
+
+/* 설정 탭이 다섯 개라 좁은 화면에서는 가로로 넘겨 본다. */
+.settings-tabs{overflow-x:auto;scrollbar-width:none}
+.settings-tabs::-webkit-scrollbar{display:none}
+.settings-tabs button{flex-shrink:0}
+.pref-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--border)}
+.pref-row:first-of-type{border-top:0}
+.pref-row>span{min-width:104px;font-size:14px;font-weight:500}
+.pref-choices{display:flex;gap:6px;flex-wrap:wrap}
+.pref-choices button{background:transparent;font-size:13px;padding:7px 12px;min-height:40px}
+.pref-choices button[aria-pressed=true]{background:var(--clay-surface-card);border-color:var(--clay-ink);font-weight:500}

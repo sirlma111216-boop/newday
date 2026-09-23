@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent } from 'react';
-import { addDays, calendarDays, dayDiff, deadlineLabel, seoulToday, weekSegments, categoryStyleOf, schoolHolidayOn, type Data, type Schedule, type Settings } from './model';
+import { addDays, calendarDays, dayDiff, deadlineLabel, seoulToday, weekSegments, categoryStyleOf, schoolHolidayOn, weekdayLabels, weekdayOf, type Data, type Schedule, type Settings } from './model';
 
 type Props = {
   data: Data;
@@ -66,7 +66,7 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
     finally { savingRef.current = false; setSaving(false); }
   };
 
-  const days = calendarDays(month), today = seoulToday();
+  const prefs = settings.calendar; const days = calendarDays(month, prefs.weekStart), today = seoulToday();
   const drag = (e: DragEvent, id: string, origin: string, resize = false) => {
     e.stopPropagation();
     e.dataTransfer.setData('application/work-calendar', JSON.stringify({ id, origin, resize }));
@@ -82,19 +82,19 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
   };
 
   return <div className="calendar">
-    <div className="weekdays">{'일월화수목금토'.split('').map(day => <span key={day}>{day}</span>)}</div>
+    <div className="weekdays">{weekdayLabels(prefs.weekStart).map((day, i) => { const w = (i + prefs.weekStart) % 7; return <span key={day} className={w === 0 ? 'sun' : w === 6 ? 'sat' : ''}>{day}</span>; })}</div>
     {Array.from({ length: days.length / 7 }, (_, weekIndex) => {
       const week = days.slice(weekIndex * 7, weekIndex * 7 + 7);
       const segments = weekSegments(events, week);
       const preview = draft && draft.start <= week[6] && draft.end >= week[0] ? { start: Math.max(0, dayDiff(draft.start, week[0])), end: Math.min(6, dayDiff(draft.end, week[0])) } : null;
       return <div className="week" key={week[0]}>
-        <div className="day-backgrounds">{week.map((date, dayIndex) => { const publicName = holidays[date]; const school = schoolHolidayOn(settings, date); const restDay = dayIndex === 0 || dayIndex === 6 || !!publicName; return <div key={date} data-date={date} className={'day ' + (date.slice(0, 7) !== month.slice(0, 7) ? 'muted ' : '') + (restDay ? 'rest-day ' : '') + (school ? 'school-holiday ' : '')} onPointerDown={e => startSelection(e, date)} onPointerMove={extendSelection} onPointerUp={finishSelection} onPointerCancel={() => { anchor.current = null; setSelecting(false); }} onDragOver={e => { if (e.dataTransfer.types.includes('application/work-calendar')) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); } }} onDragLeave={e => e.currentTarget.classList.remove('drag-over')} onDrop={e => drop(e, date)}>
+        <div className="day-backgrounds">{week.map((date, dayIndex) => { const publicName = holidays[date]; const school = schoolHolidayOn(settings, date); const weekday = weekdayOf(date); const restDay = weekday === 0 || !!publicName; return <div key={date} data-date={date} className={'day ' + (date.slice(0, 7) !== month.slice(0, 7) ? 'muted ' : '') + (restDay ? 'rest-day ' : '') + (school ? 'school-holiday ' : '') + (weekday === 0 ? 'sun ' : weekday === 6 ? 'sat ' : '')} onPointerDown={e => startSelection(e, date)} onPointerMove={extendSelection} onPointerUp={finishSelection} onPointerCancel={() => { anchor.current = null; setSelecting(false); }} onDragOver={e => { if (e.dataTransfer.types.includes('application/work-calendar')) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); } }} onDragLeave={e => e.currentTarget.classList.remove('drag-over')} onDrop={e => drop(e, date)}>
           <button className={'day-number ' + (date === today ? 'today' : '')} aria-label={`${date} 일정 추가`} aria-current={date === today ? 'date' : undefined} onClick={e => { e.stopPropagation(); if (e.detail === 0) begin(date); }}>{Number(date.slice(8))}</button>
           {date === today && <span className="today-label">오늘</span>}
           {(publicName || school) && <span className={'holiday-name ' + (publicName ? 'public' : '')} title={[publicName, school?.name].filter(Boolean).join(' · ')}>{publicName || school!.name}</span>}
         </div>; })}</div>
 
-        <div className="event-grid">{segments.filter(segment => segment.lane < 3).map(segment => {
+        <div className="event-grid">{segments.filter(segment => segment.lane < prefs.maxPerCell).map(segment => {
           const task = data.tasks.find(item => item.id === segment.event.taskId)!;
           const period = segment.event.start !== segment.event.end;
           const deadline = deadlineLabel(segment.event);

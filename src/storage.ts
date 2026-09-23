@@ -1,10 +1,27 @@
-import { CATEGORY_COLORS, STATUSES, TYPES, KEY, defaultSettings, safeLink, validDate, validateEvent, seedData, type CategoryDef, type Data, type SchoolHoliday, type Settings } from './model.ts';
+import { CATEGORY_COLORS, defaultCalendarPrefs, STATUSES, TYPES, KEY, defaultSettings, safeLink, validDate, validateEvent, seedData, type CalendarPrefs, type CategoryDef, type Data, type SchoolHoliday, type Settings } from './model.ts';
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const string = (v: unknown, max = 10000): v is string => typeof v === 'string' && v.length <= max;
 const id = (v: unknown): v is string => string(v, 150) && /^[a-zA-Z0-9_-]+$/.test(v);
 const finite = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 9e15;
 const text = (v: unknown, max: number) => (string(v, max) ? v : '');
 function assert(ok: unknown, message: string): asserts ok { if (!ok) throw new Error(message); }
+
+// 달력 표시 설정은 보기 취향일 뿐이라, 값이 이상하면 막지 않고 기본값으로 되돌린다.
+function parseCalendarPrefs(input: unknown): CalendarPrefs {
+  const base = defaultCalendarPrefs();
+  if (!isObj(input)) return base;
+  const pick = <K extends keyof CalendarPrefs>(key: K, allowed: readonly CalendarPrefs[K][]) =>
+    (allowed as readonly unknown[]).includes(input[key as string]) ? input[key as string] as CalendarPrefs[K] : base[key];
+  return {
+    weekStart: pick('weekStart', [0, 1]),
+    density: pick('density', ['compact', 'normal', 'roomy']),
+    fontScale: pick('fontScale', ['small', 'normal', 'large']),
+    fontFamily: pick('fontFamily', ['default', 'system', 'malgun', 'nanum']),
+    maxPerCell: pick('maxPerCell', [2, 3, 4, 5, 6]),
+    saturdayColor: pick('saturdayColor', ['blue', 'red']),
+    defaultView: pick('defaultView', ['auto', 'calendar', 'list']),
+  };
+}
 
 // 설정은 나중에 추가된 항목이라, 없거나 망가진 백업은 기본값으로 되돌리고 나머지 데이터는 살린다.
 function parseSettings(input: unknown, unique: (v: unknown) => void): Settings {
@@ -35,7 +52,7 @@ function parseSettings(input: unknown, unique: (v: unknown) => void): Settings {
     }
   }
 
-  return { profile, categories, holidays, holidayKey: text(input.holidayKey, 500) };
+  return { profile, calendar: parseCalendarPrefs(input.calendar), categories, holidays, holidayKey: text(input.holidayKey, 500) };
 }
 
 export function parseBackup(input: unknown): Data {

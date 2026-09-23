@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultSettings, fallbackCategory, schoolHolidayOn, validateSchoolHoliday, addDays, calendarDays, seedData, weekSegments, dayDiff, seoulToday, blankEvent, blankTask, dueNotices, eventTimestamp, validateEvent, safeLink, filteredEvents, searchEvents, cancelPending, type Data } from '../src/model.ts';
+import { defaultSettings, defaultCalendarPrefs, calendarVars, weekdayLabels, weekdayOf, DENSITY_HEIGHT, FONT_SCALE, shiftMonth, fallbackCategory, schoolHolidayOn, validateSchoolHoliday, addDays, calendarDays, seedData, weekSegments, dayDiff, seoulToday, blankEvent, blankTask, dueNotices, eventTimestamp, validateEvent, safeLink, filteredEvents, searchEvents, cancelPending, type Data } from '../src/model.ts';
 import { parseBackup, loadData, saveData } from '../src/storage.ts';
 test('서울 날짜는 UTC와 구별되며 윤년과 월 경계에서 날짜 계산이 정확하다', () => { assert.equal(seoulToday(new Date('2026-09-12T16:00:00Z')), '2026-09-13'); assert.equal(addDays('2024-02-28', 1), '2024-02-29'); assert.equal(addDays('2026-12-31', 1), '2027-01-01'); assert.equal(dayDiff('2026-10-02', '2026-09-29'), 3); });
 test('월간은 일요일 시작, 토요일 종료이며 마지막 날짜까지 포함한다', () => { for (const month of ['2026-02-01', '2026-05-01', '2026-09-01']) { const d = calendarDays(month); assert.equal(d.length % 7, 0); assert.equal(new Date(d[0] + 'T00:00Z').getUTCDay(), 0); assert.equal(new Date(d.at(-1)! + 'T00:00Z').getUTCDay(), 6); } });
@@ -105,4 +105,51 @@ test('검색은 달력을 거르지 않고 이동할 목록만 만들며 다가�
   const limited = searchEvents(data, '예시', today, 3);
   assert.equal(limited.rows.length, 3);
   assert.ok(limited.total > 3);
+});
+
+test('주 시작 요일에 따라 달력 첫 칸과 요일 머리글이 바뀐다', () => {
+  for (const month of ['2026-02-01', '2026-05-01', '2026-09-01']) {
+    const sunday = calendarDays(month, 0);
+    const monday = calendarDays(month, 1);
+    assert.equal(sunday.length % 7, 0);
+    assert.equal(monday.length % 7, 0);
+    assert.equal(new Date(sunday[0] + 'T00:00Z').getUTCDay(), 0);
+    assert.equal(new Date(sunday.at(-1)! + 'T00:00Z').getUTCDay(), 6);
+    assert.equal(new Date(monday[0] + 'T00:00Z').getUTCDay(), 1);
+    assert.equal(new Date(monday.at(-1)! + 'T00:00Z').getUTCDay(), 0);
+    // 두 설정 모두 그 달을 하루도 빠짐없이 담아야 한다.
+    const first = month.slice(0, 7) + '-01';
+    const last = addDays(shiftMonth(first, 1), -1);
+    for (const grid of [sunday, monday]) { assert.ok(grid.includes(first)); assert.ok(grid.includes(last)); }
+  }
+  assert.deepEqual(weekdayLabels(0), ['일', '월', '화', '수', '목', '금', '토']);
+  assert.deepEqual(weekdayLabels(1), ['월', '화', '수', '목', '금', '토', '일']);
+  assert.equal(weekdayOf('2026-09-13'), 0);
+  assert.equal(weekdayOf('2026-09-19'), 6);
+});
+
+test('달력 표시 설정은 기본값을 채우고 이상한 값은 되돌린다', () => {
+  const data = seedData('2026-09-21');
+  assert.deepEqual(data.settings.calendar, defaultCalendarPrefs());
+
+  // 설정이 없던 예전 백업도 기본값으로 복원된다.
+  const legacy = JSON.parse(JSON.stringify(data));
+  delete legacy.settings.calendar;
+  assert.deepEqual(parseBackup(legacy).settings.calendar, defaultCalendarPrefs());
+
+  // 고른 값은 그대로 저장된다.
+  const tuned = structuredClone(data);
+  tuned.settings.calendar = { weekStart: 1, density: 'roomy', fontScale: 'large', fontFamily: 'malgun', maxPerCell: 5, saturdayColor: 'red', defaultView: 'list' };
+  assert.deepEqual(parseBackup(JSON.parse(JSON.stringify(tuned))).settings.calendar, tuned.settings.calendar);
+
+  // 범위를 벗어난 값은 막지 않고 기본값으로 되돌린다. 보기 취향일 뿐이라 데이터를 잃으면 안 된다.
+  const broken = JSON.parse(JSON.stringify(data));
+  broken.settings.calendar = { weekStart: 9, density: 'huge', fontScale: null, fontFamily: 'comic', maxPerCell: 99, saturdayColor: 'green', defaultView: 'grid' };
+  assert.deepEqual(parseBackup(broken).settings.calendar, defaultCalendarPrefs());
+
+  // CSS 변수로 칸 높이·글자·토요일 색이 나온다.
+  const vars = calendarVars({ ...defaultCalendarPrefs(), density: 'compact', fontScale: 'large', saturdayColor: 'red' }) as Record<string, string>;
+  assert.equal(vars['--week-min-height'], DENSITY_HEIGHT.compact);
+  assert.equal(vars['--cal-font-scale'], FONT_SCALE.large);
+  assert.equal(vars['--sat-color'], '#c2453c');
 });

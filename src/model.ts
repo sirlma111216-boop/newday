@@ -13,7 +13,8 @@ export type Notice = { id: string; eventId: string; title: string; dueAt: number
 export type Profile = { name: string; school: string; department: string; note: string };
 export type SchoolHoliday = { id: string; name: string; start: string; end: string };
 export type CategoryDef = { id: string; name: string; color: string };
-export type Settings = { profile: Profile; categories: CategoryDef[]; holidays: SchoolHoliday[]; holidayKey: string };
+export type CalendarPrefs = { weekStart: 0 | 1; density: 'compact' | 'normal' | 'roomy'; fontScale: 'small' | 'normal' | 'large'; fontFamily: 'default' | 'system' | 'malgun' | 'nanum'; maxPerCell: number; saturdayColor: 'blue' | 'red'; defaultView: 'auto' | 'calendar' | 'list' };
+export type Settings = { profile: Profile; calendar: CalendarPrefs; categories: CategoryDef[]; holidays: SchoolHoliday[]; holidayKey: string };
 export type Data = { version: 1; tasks: Task[]; events: Schedule[]; notices: Notice[]; delivered: string[]; settings: Settings };
 export const REMINDERS = [{ value: 10080, label: '7일 전' }, { value: 1440, label: '1일 전' }, { value: 60, label: '1시간 전' }, { value: 0, label: '정각' }];
 export const KEY = 'work-calendar-v1';
@@ -22,7 +23,7 @@ export function seoulToday(now = new Date()) { return new Intl.DateTimeFormat('s
 export function addDays(date: string, amount: number) { return new Date(Date.parse(date + 'T00:00:00Z') + amount * 86400000).toISOString().slice(0, 10); }
 export function dayDiff(a: string, b: string) { return Math.round((Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / 86400000); }
 export function shiftMonth(date: string, amount: number) { const d = new Date(date + 'T00:00:00Z'); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + amount); return d.toISOString().slice(0, 10); }
-export function calendarDays(month: string) { const first = month.slice(0, 7) + '-01'; const offset = new Date(first + 'T00:00:00Z').getUTCDay(); const last = addDays(shiftMonth(first, 1), -1); const count = Math.ceil((Number(last.slice(-2)) + offset) / 7) * 7; return Array.from({ length: count }, (_, i) => addDays(first, i - offset)); }
+export function calendarDays(month: string, weekStart = 0) { const first = month.slice(0, 7) + '-01'; const offset = (new Date(first + 'T00:00:00Z').getUTCDay() - weekStart + 7) % 7; const last = addDays(shiftMonth(first, 1), -1); const count = Math.ceil((Number(last.slice(-2)) + offset) / 7) * 7; return Array.from({ length: count }, (_, i) => addDays(first, i - offset)); }
 export function dateLabel(date: string) { return `${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일`; }
 export function validDate(d: unknown): d is string { return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && Number(d.slice(0, 4)) >= 1900 && Number(d.slice(0, 4)) <= 2200 && !isNaN(Date.parse(d)) && new Date(d + 'T00:00:00Z').toISOString().slice(0, 10) === d; }
 // 원노트 단락 링크에는 전자 필기장·구역·페이지 이름의 공백이 그대로 들어오므로 가운데 공백은 허용한다.
@@ -62,7 +63,8 @@ export const DEFAULT_CATEGORIES: CategoryDef[] = [
   { id: 'cat-personal', name: '개인', color: '#e8b94a' },
   { id: 'cat-none', name: FALLBACK_CATEGORY, color: '#e0dfdb' },
 ];
-export function defaultSettings(): Settings { return { profile: { name: '', school: '', department: '', note: '' }, categories: DEFAULT_CATEGORIES.map(c => ({ ...c })), holidays: [], holidayKey: '' }; }
+export function defaultCalendarPrefs(): CalendarPrefs { return { weekStart: 0, density: 'normal', fontScale: 'normal', fontFamily: 'default', maxPerCell: 3, saturdayColor: 'blue', defaultView: 'auto' }; }
+export function defaultSettings(): Settings { return { profile: { name: '', school: '', department: '', note: '' }, calendar: defaultCalendarPrefs(), categories: DEFAULT_CATEGORIES.map(c => ({ ...c })), holidays: [], holidayKey: '' }; }
 export function categoryColor(settings: Settings, name: string) { return settings.categories.find(c => c.name === name)?.color ?? '#e0dfdb'; }
 // --cat-* 를 직접 넣어 .cat-0 같은 고정 클래스 없이도 같은 배색을 쓴다.
 export function categoryStyle(color: string): CSSProperties { return { '--cat-bg': color, '--cat-text': 'var(--clay-ink)', '--cat-border': `color-mix(in srgb, ${color} 65%, var(--clay-teal))` } as CSSProperties; }
@@ -87,4 +89,29 @@ export function searchEvents(data: Data, query: string, today = seoulToday(), li
   const upcoming = matched.filter(e => e.end >= today).sort(order);
   const past = matched.filter(e => e.end < today).sort((a, b) => order(b, a));
   return { total: matched.length, rows: [...upcoming, ...past].slice(0, limit) };
+}
+
+// ── 달력 표시 설정 ────────────────────────────────────
+const WEEKDAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+export const DENSITY_HEIGHT = { compact: '112px', normal: '156px', roomy: '210px' };
+export const FONT_SCALE = { small: '0.88', normal: '1', large: '1.16' };
+export const FONT_STACK = {
+  default: "'Inter', 'Noto Sans KR', 'Segoe UI', 'Malgun Gothic', sans-serif",
+  system: "system-ui, -apple-system, 'Segoe UI', 'Malgun Gothic', sans-serif",
+  malgun: "'Malgun Gothic', '맑은 고딕', system-ui, sans-serif",
+  nanum: "'NanumGothic', 'Nanum Gothic', '나눔고딕', system-ui, sans-serif",
+};
+export function weekdayOf(date: string) { return new Date(date + 'T00:00:00Z').getUTCDay(); }
+export function weekdayLabels(weekStart = 0) { return Array.from({ length: 7 }, (_, i) => WEEKDAY_NAMES[(i + weekStart) % 7]); }
+/** 달력 밀도·글자·글꼴을 CSS 변수로 만들어 앱 전체에 적용한다. */
+export function calendarVars(prefs: CalendarPrefs): CSSProperties {
+  return {
+    '--week-min-height': DENSITY_HEIGHT[prefs.density] ?? DENSITY_HEIGHT.normal,
+    '--cal-font-scale': FONT_SCALE[prefs.fontScale] ?? FONT_SCALE.normal,
+    '--clay-font': FONT_STACK[prefs.fontFamily] ?? FONT_STACK.default,
+    '--clay-display': FONT_STACK[prefs.fontFamily] ?? FONT_STACK.default,
+    '--sat-color': prefs.saturdayColor === 'red' ? '#c2453c' : '#4f7cb5',
+    // body 는 .app 의 조상이라 변수만 덮으면 글꼴이 바뀌지 않는다. 직접 지정해 상속시킨다.
+    fontFamily: FONT_STACK[prefs.fontFamily] ?? FONT_STACK.default,
+  } as CSSProperties;
 }
