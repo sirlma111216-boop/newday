@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { blankTodo, moveTodo, splitTodos, toggleTodo, defaultSettings, defaultCalendarPrefs, calendarVars, weekdayLabels, weekdayOf, DENSITY_HEIGHT, FONT_SCALE, shiftMonth, fallbackCategory, schoolHolidayOn, validateSchoolHoliday, addDays, calendarDays, seedData, weekSegments, dayDiff, seoulToday, blankEvent, blankTask, dueNotices, eventTimestamp, validateEvent, safeLink, filteredEvents, searchEvents, cancelPending, type Data } from '../src/model.ts';
+import { buildShareSnapshot, newShareCode, formatShareCode, normalizeShareCode, validShareCode, blankTodo, moveTodo, splitTodos, toggleTodo, defaultSettings, defaultCalendarPrefs, calendarVars, weekdayLabels, weekdayOf, DENSITY_HEIGHT, FONT_SCALE, shiftMonth, fallbackCategory, schoolHolidayOn, validateSchoolHoliday, addDays, calendarDays, seedData, weekSegments, dayDiff, seoulToday, blankEvent, blankTask, dueNotices, eventTimestamp, validateEvent, safeLink, filteredEvents, searchEvents, cancelPending, type Data } from '../src/model.ts';
 import { parseBackup, loadData, saveData } from '../src/storage.ts';
 test('서울 날짜는 UTC와 구별되며 윤년과 월 경계에서 날짜 계산이 정확하다', () => { assert.equal(seoulToday(new Date('2026-09-12T16:00:00Z')), '2026-09-13'); assert.equal(addDays('2024-02-28', 1), '2024-02-29'); assert.equal(addDays('2026-12-31', 1), '2027-01-01'); assert.equal(dayDiff('2026-10-02', '2026-09-29'), 3); });
 test('월간은 일요일 시작, 토요일 종료이며 마지막 날짜까지 포함한다', () => { for (const month of ['2026-02-01', '2026-05-01', '2026-09-01']) { const d = calendarDays(month); assert.equal(d.length % 7, 0); assert.equal(new Date(d[0] + 'T00:00Z').getUTCDay(), 0); assert.equal(new Date(d.at(-1)! + 'T00:00Z').getUTCDay(), 6); } });
@@ -263,4 +263,54 @@ test('할 일은 백업에 저장되고 잘못된 값은 거부한다', () => {
     (x: Data) => { (x.todos[0] as unknown as Record<string, unknown>).done = 'yes'; },
     (x: Data) => { (x.todos[0] as unknown as Record<string, unknown>).doneAt = 'now'; },
   ]) { const copy = structuredClone(data); broken(copy); assert.throws(() => parseBackup(JSON.parse(JSON.stringify(copy)))); }
+});
+
+test('공유 사본에는 고른 분류만 담기고 개인정보·인증키·알림은 빠진다', () => {
+  const data = seedData('2026-09-21');
+  data.settings.profile = { name: '김교사', school: '○○중학교', department: '교무부', note: '내선 1234' };
+  data.settings.holidayKey = 'SECRET-KEY';
+  data.settings.holidays = [{ id: 'h1', name: '재량휴업일', start: '2026-10-05', end: '2026-10-05' }];
+  data.todos = [{ id: 'todo-1', text: '비밀 메모', done: false, createdAt: 1, doneAt: 0 }];
+  data.events[0].reminders = [1440];
+
+  const snapshot = buildShareSnapshot(data, ['수업']);
+
+  // 고른 분류의 업무와 그 일정만 남는다.
+  assert.ok(snapshot.tasks.length > 0);
+  assert.ok(snapshot.tasks.every(t => t.category === '수업'));
+  const taskIds = new Set(snapshot.tasks.map(t => t.id));
+  assert.ok(snapshot.events.every(e => taskIds.has(e.taskId)));
+  // 고르지 않은 분류의 일정은 하나도 들어가지 않는다.
+  const hiddenTasks = data.tasks.filter(t => t.category !== '수업').map(t => t.id);
+  assert.ok(snapshot.events.every(e => !hiddenTasks.includes(e.taskId)));
+  assert.deepEqual(snapshot.settings.categories.map(c => c.name), ['수업']);
+
+  // 달력 내용이 아닌 것은 담지 않는다.
+  assert.deepEqual(snapshot.settings.profile, { name: '', school: '', department: '', note: '' });
+  assert.equal(snapshot.settings.holidayKey, '');
+  assert.deepEqual(snapshot.todos, []);
+  assert.deepEqual(snapshot.notices, []);
+  assert.deepEqual(snapshot.delivered, []);
+  assert.ok(snapshot.events.every(e => e.reminders.length === 0));
+  // 학교 휴일은 달력 표시에 필요하므로 함께 간다.
+  assert.deepEqual(snapshot.settings.holidays, data.settings.holidays);
+
+  // 사본은 그대로 저장·복원할 수 있어야 한다.
+  assert.deepEqual(parseBackup(JSON.parse(JSON.stringify(snapshot))), snapshot);
+  // 원본은 건드리지 않는다.
+  assert.equal(data.settings.profile.name, '김교사');
+  assert.equal(data.todos.length, 1);
+});
+
+test('공유 번호는 길고 헷갈리는 글자가 없으며 붙임표를 넣어도 알아본다', () => {
+  const code = newShareCode();
+  assert.equal(code.length, 24);
+  assert.ok(validShareCode(code));
+  assert.ok(!/[01IO]/.test(code), '0·1·I·O 처럼 헷갈리는 글자는 쓰지 않는다');
+  assert.equal(formatShareCode(code).replace(/-/g, ''), code);
+  assert.equal(normalizeShareCode(formatShareCode(code).toLowerCase()), code);
+  assert.equal(normalizeShareCode(' ab cd-ef '), 'ABCDEF');
+  assert.ok(!validShareCode('SHORT'));
+  // 매번 다른 번호가 나온다.
+  assert.equal(new Set(Array.from({ length: 50 }, () => newShareCode())).size, 50);
 });

@@ -21,5 +21,29 @@ service cloud.firestore {
       // 달력 비우기는 문서를 삭제하지 않고 빈 데이터를 저장합니다.
       allow delete: if false;
     }
+
+    // 일정 공유: 공유 번호를 아는 '로그인한' 사용자만 읽을 수 있습니다.
+    // 쓰기는 만든 본인만 가능하므로 보는 사람은 고치거나 지울 수 없습니다.
+    match /shares/{code} {
+      function signedIn() {
+        return request.auth != null;
+      }
+      function mine() {
+        return request.auth != null && request.auth.uid == resource.data.ownerUid;
+      }
+      function validShare() {
+        return request.resource.data.keys().hasOnly(['payload', 'label', 'ownerUid', 'updatedAt'])
+          && request.resource.data.payload is string
+          && request.resource.data.payload.size() <= 900000
+          && request.resource.data.label is string
+          && request.resource.data.label.size() <= 200
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.updatedAt == request.time;
+      }
+      allow read: if signedIn();
+      allow create: if signedIn() && validShare();
+      allow update: if signedIn() && mine() && validShare();
+      allow delete: if signedIn() && mine();
+    }
   }
 }

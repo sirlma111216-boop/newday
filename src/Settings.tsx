@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Trash2, User, CalendarOff, Tags, Check, CalendarDays, Bell, Puzzle, ListTodo } from 'lucide-react';
+import { Plus, Trash2, User, CalendarOff, Tags, Check, CalendarDays, Bell, Puzzle, ListTodo, Share2, Copy, Eye } from 'lucide-react';
 import { Modal } from './Editor';
 import { loadHolidays } from './holidays';
 import { NotificationSettings } from './Panels';
+import { ShareSettings } from './Share';
 import { CATEGORY_COLORS, FALLBACK_CATEGORY, defaultCalendarPrefs, defaultExtras, type CalendarPrefs, type Extras, type Schedule, blankSchoolHoliday, categoryStyle, seoulToday, uid, validateSchoolHoliday, type CategoryDef, type Data, type SchoolHoliday, type Settings as SettingsData } from './model';
 
-export type SettingsTab = 'profile' | 'calendar' | 'holiday' | 'category' | 'extras' | 'notice';
+export type SettingsTab = 'profile' | 'calendar' | 'holiday' | 'category' | 'extras' | 'share' | 'notice';
 
-export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, commit, onOpen, onTest, toast }: { data: Data; initialTab?: SettingsTab; onClose: () => void; onSave: (settings: SettingsData, renames: Record<string, string>) => Promise<boolean>; commit: (data: Data, recovery?: boolean) => Promise<boolean>; onOpen: (id: string) => void; onTest: (event: Schedule) => void; toast: (message: string) => void }) {
+export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, commit, onOpen, onTest, onViewShare, toast }: { data: Data; initialTab?: SettingsTab; onViewShare: (code: string) => void; onClose: () => void; onSave: (settings: SettingsData, renames: Record<string, string>) => Promise<boolean>; commit: (data: Data, recovery?: boolean) => Promise<boolean>; onOpen: (id: string) => void; onTest: (event: Schedule) => void; toast: (message: string) => void }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
   const [draft, setDraft] = useState<SettingsData>(() => structuredClone(data.settings));
   // 좁은 화면에서는 탭이 가로로 넘치므로, 고른 탭이 화면 밖에 남지 않게 끌어온다.
@@ -92,6 +93,7 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
       <button role="tab" aria-selected={tab === 'holiday'} className={tab === 'holiday' ? 'active' : ''} onClick={() => setTab('holiday')}><CalendarOff size={16}/>휴일</button>
       <button role="tab" aria-selected={tab === 'category'} className={tab === 'category' ? 'active' : ''} onClick={() => setTab('category')}><Tags size={16}/>분류</button>
       <button role="tab" aria-selected={tab === 'extras'} className={tab === 'extras' ? 'active' : ''} onClick={() => setTab('extras')}><Puzzle size={16}/>추가 기능</button>
+      <button role="tab" aria-selected={tab === 'share'} className={tab === 'share' ? 'active' : ''} onClick={() => setTab('share')}><Share2 size={16}/>공유</button>
       <button role="tab" aria-selected={tab === 'notice'} className={tab === 'notice' ? 'active' : ''} onClick={() => setTab('notice')}><Bell size={16}/>알림</button>
     </div>
 
@@ -173,6 +175,8 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
           <span className="extra-text"><strong>할 일 목록</strong><small>해야 할 일과 완료한 일을 나눠 적어 두는 메모입니다. 순서를 바꿀 수 있고, 완료한 시각이 함께 남습니다.</small></span>
         </label>
       </>}
+
+      {tab === 'share' && <ShareSettings data={data} onView={onViewShare} toast={toast}/>}
 
       {error && <p className="form-error" role="alert">{error}</p>}
     </div>

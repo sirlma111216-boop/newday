@@ -11,19 +11,23 @@ import { Calendar } from './Calendar';
 import { BackupDialog } from './Panels';
 import { SettingsDialog, type SettingsTab } from './Settings';
 import { TodoDialog } from './Todo';
+import { SharedCalendar, ShareEntry, rememberShare, rememberedShare } from './Shared';
 import { useHolidays } from './holidays';
 export default function App() {
- return cloudConfigured ? <CloudSession>{user => <CloudCalendar key={user.uid} user={user}/>}</CloudSession> : <LocalCalendar/>;
+ const [viewing, setViewing] = useState(rememberedShare);
+ const openShare = (code: string) => { rememberShare(code); setViewing(code); };
+ if (viewing) return <SharedCalendar code={viewing} onLeave={() => setViewing('')}/>;
+ return cloudConfigured ? <CloudSession>{user => <CloudCalendar key={user.uid} user={user} onViewShare={openShare}/>}</CloudSession> : <LocalCalendar onViewShare={openShare}/>;
 }
-function LocalCalendar() {
+function LocalCalendar({ onViewShare }: { onViewShare: (code: string) => void }) {
  const store = useData();
- return <>{cloudConfigIncomplete && <div className="error-banner" role="alert">Firebase 설정 네 가지 중 빠진 값이 있습니다. 현재는 브라우저 저장 모드입니다.</div>}<CalendarApp store={store}/></>;
+ return <>{cloudConfigIncomplete && <div className="error-banner" role="alert">Firebase 설정 네 가지 중 빠진 값이 있습니다. 현재는 브라우저 저장 모드입니다.</div>}<CalendarApp store={store} onViewShare={onViewShare}/></>;
 }
-function CloudCalendar({ user }: { user: User }) {
+function CloudCalendar({ user, onViewShare }: { user: User; onViewShare: (code: string) => void }) {
  const store = useCloudData(user.uid);
- return <><CloudAccount user={user} busy={store.busy} onError={store.setError}/>{store.ready ? <CalendarApp store={store}/> : <div className="cloud-gate"><section className="cloud-login"><h1>업무달력 연결</h1><p role={store.error ? 'alert' : 'status'}>{store.error || '클라우드 일정을 불러오고 있습니다…'}</p><p className="help">접근 권한 오류가 있으면 위 계정 정보의 UID를 Firestore 규칙에 입력해 주세요.</p><button onClick={store.retry}>다시 연결</button></section></div>}</>;
+ return <><CloudAccount user={user} busy={store.busy} onError={store.setError}/>{store.ready ? <CalendarApp store={store} onViewShare={onViewShare}/> : <div className="cloud-gate"><section className="cloud-login"><h1>업무달력 연결</h1><p role={store.error ? 'alert' : 'status'}>{store.error || '클라우드 일정을 불러오고 있습니다…'}</p><p className="help">접근 권한 오류가 있으면 위 계정 정보의 UID를 Firestore 규칙에 입력해 주세요.</p><button onClick={store.retry}>다시 연결</button><ShareEntry onView={onViewShare}/></section></div>}</>;
 }
-function CalendarApp({ store }: { store: ReturnType<typeof useData> }) {
+function CalendarApp({ store, onViewShare }: { store: ReturnType<typeof useData>; onViewShare: (code: string) => void }) {
  const { data, commit, error } = store; const [month, setMonth] = useState(seoulToday()); const [query, setQuery] = useState(''); const settings = data.settings ?? defaultSettings(); const categoryNames = settings.categories.map(c => c.name); const [categories, setCategories] = useState<Category[]>(() => [...categoryNames]); const [incomplete, setIncomplete] = useState(false); const [side, setSide] = useState(() => window.innerWidth > 900); const [view, setView] = useState<'calendar' | 'list'>(() => { const pick = store.data.settings?.calendar?.defaultView ?? 'auto'; return pick === 'auto' ? (window.innerWidth < 700 ? 'list' : 'calendar') : pick; }); const [selected, setSelected] = useState<string | null>(null); const [editor, setEditor] = useState<Schedule | null>(null); const [modal, setModal] = useState<'backup' | 'settings' | 'todo' | null>(null); const [dayView, setDayView] = useState<string | null>(null); const [deleting, setDeleting] = useState<'event' | 'task' | null>(null); const [toast, setToast] = useState(''); const [settingsTab, setSettingsTab] = useState<SettingsTab>('profile'); const [searchOpen, setSearchOpen] = useState(false); const [highlight, setHighlight] = useState(0); const [now, setNow] = useState(Date.now());
  const today = seoulToday(new Date(now)); const events = filteredEvents(data, '', categories, incomplete);
  const search = searchEvents(data, query, today); const current = data.events.find(e => e.id === selected); const task = data.tasks.find(t => t.id === current?.taskId); const related = data.events.filter(e => e.taskId === task?.id).sort((a, b) => a.start.localeCompare(b.start)); const unread = data.notices.filter(n => !n.read).length;
@@ -76,7 +80,7 @@ function CalendarApp({ store }: { store: ReturnType<typeof useData> }) {
  {deleting && current && task && <Modal title={deleting === 'task' ? '업무 전체 삭제' : '일정 삭제'} onClose={() => setDeleting(null)}><div className="modal-content"><p><strong>{deleting === 'task' ? task.name : current.title}</strong></p><p className="help">{deleting === 'task' ? `연결된 일정 ${related.length}개와 업무의 메모·링크·체크리스트를 함께 삭제합니다.` : related.length > 1 ? '이 일정만 삭제합니다. 같은 업무의 다른 일정과 공통 자료는 유지됩니다.' : '마지막 연결 일정이므로 업무의 공통 자료도 함께 삭제됩니다.'} 이 작업은 되돌릴 수 없습니다.</p></div><div className="modal-actions"><button onClick={() => setDeleting(null)}>취소</button><button className="danger-solid" onClick={remove}>삭제</button></div></Modal>}
  {modal === 'backup' && <BackupDialog cloud={store.cloud} data={data} onClose={() => setModal(null)} commit={commit} toast={setToast} onImported={() => setSelected(null)}/>}
  {modal === 'todo' && <TodoDialog data={data} onClose={() => setModal(null)} commit={commit} toast={setToast}/>}
- {modal === 'settings' && <SettingsDialog data={data} initialTab={settingsTab} onClose={() => setModal(null)} onSave={saveSettings} commit={commit} onOpen={open} onTest={(e: Schedule) => { setModal(null); setEditor(e); }} toast={setToast}/>}
+ {modal === 'settings' && <SettingsDialog data={data} initialTab={settingsTab} onViewShare={onViewShare} onClose={() => setModal(null)} onSave={saveSettings} commit={commit} onOpen={open} onTest={(e: Schedule) => { setModal(null); setEditor(e); }} toast={setToast}/>}
  {toast && <div className="toast" role="status"><Check size={17}/>{toast}<button className="icon-button" aria-label="안내 닫기" onClick={() => setToast('')}><X size={15}/></button></div>}
  </div>;
 }

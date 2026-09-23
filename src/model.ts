@@ -145,3 +145,50 @@ export function toggleTodo(todos: TodoItem[], id: string, now = Date.now()) {
 export function todoDoneLabel(at: number) {
   return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(at);
 }
+
+// ── 일정 공유 ─────────────────────────────────────────
+// 공유는 '고른 분류만 따로 복사해 저장'하는 방식이다. 브라우저에서 걸러 보여 주는 방식은
+// 개발자 도구로 전체가 드러나므로 보안이 되지 않는다.
+export type ShareConfig = { code: string; categories: string[]; updatedAt: number };
+export type SharePayload = { label: string; data: Data };
+
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 0/O, 1/I 처럼 헷갈리는 글자는 뺀다
+export function newShareCode(length = 24) {
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  return [...bytes].map(b => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
+}
+/** 보기 좋게 네 글자씩 끊어 보여 준다. */
+export function formatShareCode(code: string) { return (code.match(/.{1,4}/g) ?? []).join('-'); }
+/** 붙여 넣을 때 공백·붙임표가 섞여도 받아들인다. */
+export function normalizeShareCode(input: string) { return input.toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+export function validShareCode(code: string) { return /^[A-Z0-9]{16,64}$/.test(code); }
+
+/**
+ * 고른 분류에 속한 업무와 그 일정만 남긴 사본을 만든다.
+ * 개인정보·공휴일 인증키·알림·할 일은 달력 내용이 아니므로 사본에 담지 않는다.
+ */
+export function buildShareSnapshot(data: Data, categories: string[]): Data {
+  const allowed = new Set(categories);
+  const tasks = data.tasks.filter(t => allowed.has(t.category));
+  const taskIds = new Set(tasks.map(t => t.id));
+  return {
+    version: 1,
+    tasks: tasks.map(t => ({ ...t, links: t.links.map(l => ({ ...l })), checklist: t.checklist.map(c => ({ ...c })) })),
+    events: data.events.filter(e => taskIds.has(e.taskId)).map(e => ({ ...e, reminders: [], reminderBase: 'start' as const })),
+    notices: [],
+    delivered: [],
+    todos: [],
+    settings: {
+      profile: { name: '', school: '', department: '', note: '' },
+      calendar: { ...data.settings.calendar },
+      extras: { todo: false },
+      categories: data.settings.categories.filter(c => allowed.has(c.name)).map(c => ({ ...c })),
+      holidays: data.settings.holidays.map(h => ({ ...h })),
+      holidayKey: '',
+    },
+  };
+}
+export function shareLabel(data: Data) {
+  const name = data.settings.profile.name.trim();
+  return name ? `${name}님의 업무달력` : '공유된 업무달력';
+}

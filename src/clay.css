@@ -574,3 +574,22 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
   .todo-text { font-size: 16px; }
   .todo-when { font-size: 11px; }
 }
+
+/* ── 일정 공유 ─────────────────────────────────────── */
+.share-bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px; background: var(--clay-teal); color: var(--clay-on-dark, #fff); }
+.share-where { display: flex; align-items: center; gap: 8px; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.share-where strong { font-weight: 600; }
+.share-bar .primary { background: var(--clay-canvas); color: var(--clay-ink); border-color: var(--clay-canvas); flex-shrink: 0; min-height: 40px; }
+.share-bar .primary:hover { background: #fff; color: var(--clay-ink); }
+.share-categories { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 4px; }
+.share-categories .category-filter { padding: 8px 4px; }
+.share-code-box { margin-top: 16px; padding: 14px; background: var(--clay-surface-card); border-radius: var(--clay-radius-lg); }
+.share-code { display: block; font-size: 17px; letter-spacing: 1px; word-break: break-all; padding: 10px 12px; margin: 6px 0 10px; background: var(--clay-canvas); border-radius: var(--clay-radius-md); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.share-entry { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); text-align: left; }
+.share-entry .field { margin-bottom: 10px; }
+.share-detail h2 { font-size: 21px; font-weight: 600; margin: 8px 0; overflow-wrap: anywhere; }
+.share-link { word-break: break-all; }
+@media (max-width: 699px) {
+  .share-bar { padding: 8px 14px; }
+  .share-where { font-size: 12px; }
+}

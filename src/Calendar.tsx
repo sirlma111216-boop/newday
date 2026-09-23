@@ -10,10 +10,11 @@ type Props = {
   open: (id: string) => void;
   quickAdd: (title: string, start: string, end: string) => Promise<boolean>;
   showDay: (date: string) => void;
+  readOnly?: boolean;
   move: (id: string, date: string, origin: string, resize: boolean) => void;
 };
 
-export function Calendar({ data, settings, holidays, events, month, open, quickAdd, showDay, move }: Props) {
+export function Calendar({ data, settings, holidays, events, month, open, quickAdd, showDay, move, readOnly = false }: Props) {
   const [draft, setDraft] = useState<{ start: string; end: string; title: string } | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -37,7 +38,7 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
     })?.dataset.date;
   };
   const startSelection = (e: PointerEvent<HTMLDivElement>, date: string) => {
-    if (compact || e.button !== 0 || !begin(date)) return;
+    if (locked || compact || e.button !== 0 || !begin(date)) return;
     anchor.current = date;
     setSelecting(true);
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -66,6 +67,7 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
     finally { savingRef.current = false; setSaving(false); }
   };
 
+  const locked = readOnly;
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 699px)').matches);
   useEffect(() => {
     const query = window.matchMedia('(max-width: 699px)');
@@ -96,8 +98,8 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
       const segments = weekSegments(events, week);
       const preview = draft && draft.start <= week[6] && draft.end >= week[0] ? { start: Math.max(0, dayDiff(draft.start, week[0])), end: Math.min(6, dayDiff(draft.end, week[0])) } : null;
       return <div className="week" key={week[0]}>
-        <div className="day-backgrounds">{week.map((date, dayIndex) => { const publicName = holidays[date]; const school = schoolHolidayOn(settings, date); const weekday = weekdayOf(date); const restDay = weekday === 0 || !!publicName; return <div key={date} data-date={date} className={'day ' + (date.slice(0, 7) !== month.slice(0, 7) ? 'muted ' : '') + (restDay ? 'rest-day ' : '') + (school ? 'school-holiday ' : '') + (weekday === 0 ? 'sun ' : weekday === 6 ? 'sat ' : '')} onClick={() => { if (compact) showDay(date); }} onPointerDown={e => startSelection(e, date)} onPointerMove={extendSelection} onPointerUp={finishSelection} onPointerCancel={() => { anchor.current = null; setSelecting(false); }} onDragOver={e => { if (e.dataTransfer.types.includes('application/work-calendar')) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); } }} onDragLeave={e => e.currentTarget.classList.remove('drag-over')} onDrop={e => drop(e, date)}>
-          <button className={'day-number ' + (date === today ? 'today' : '')} aria-label={compact ? `${date} 일정 보기` : `${date} 일정 추가`} aria-current={date === today ? 'date' : undefined} onClick={e => { e.stopPropagation(); if (compact) showDay(date); else if (e.detail === 0) begin(date); }}>{Number(date.slice(8))}</button>
+        <div className="day-backgrounds">{week.map((date, dayIndex) => { const publicName = holidays[date]; const school = schoolHolidayOn(settings, date); const weekday = weekdayOf(date); const restDay = weekday === 0 || !!publicName; return <div key={date} data-date={date} className={'day ' + (date.slice(0, 7) !== month.slice(0, 7) ? 'muted ' : '') + (restDay ? 'rest-day ' : '') + (school ? 'school-holiday ' : '') + (weekday === 0 ? 'sun ' : weekday === 6 ? 'sat ' : '')} onClick={() => { if (compact || locked) showDay(date); }} onPointerDown={e => startSelection(e, date)} onPointerMove={extendSelection} onPointerUp={finishSelection} onPointerCancel={() => { anchor.current = null; setSelecting(false); }} onDragOver={e => { if (e.dataTransfer.types.includes('application/work-calendar')) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); } }} onDragLeave={e => e.currentTarget.classList.remove('drag-over')} onDrop={e => drop(e, date)}>
+          <button className={'day-number ' + (date === today ? 'today' : '')} aria-label={compact || locked ? `${date} 일정 보기` : `${date} 일정 추가`} aria-current={date === today ? 'date' : undefined} onClick={e => { e.stopPropagation(); if (compact || locked) showDay(date); else if (e.detail === 0) begin(date); }}>{Number(date.slice(8))}</button>
           {date === today && <span className="today-label">오늘</span>}
           {(publicName || school) && <span className={'holiday-name ' + (publicName ? 'public' : '')} title={[publicName, school?.name].filter(Boolean).join(' · ')}>{publicName || school!.name}</span>}
         </div>; })}</div>
@@ -106,7 +108,7 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
           const task = data.tasks.find(item => item.id === segment.event.taskId)!;
           const period = segment.event.start !== segment.event.end;
           const deadline = deadlineLabel(segment.event);
-          return <div key={segment.event.id} className={`event ${period ? 'period' : 'single'} ${segment.continued ? 'continued' : ''} ${segment.continues ? 'continues' : ''}`} style={{ ...categoryStyleOf(settings, task.category), gridColumn: `${segment.start + 1} / span ${segment.span}`, gridRow: segment.lane + 1 }} draggable onDragStart={e => {
+          return <div key={segment.event.id} className={`event ${period ? 'period' : 'single'} ${segment.continued ? 'continued' : ''} ${segment.continues ? 'continues' : ''}`} style={{ ...categoryStyleOf(settings, task.category), gridColumn: `${segment.start + 1} / span ${segment.span}`, gridRow: segment.lane + 1 }} draggable={!locked} onDragStart={e => {
             const rect = e.currentTarget.getBoundingClientRect();
             const offset = Math.min(segment.span - 1, Math.max(0, Math.floor((e.clientX - rect.left) / (rect.width / segment.span))));
             drag(e, segment.event.id, addDays(week[segment.start], offset));
@@ -114,7 +116,7 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
             <button className="event-title" onClick={() => open(segment.event.id)} title={`${segment.event.title} · ${segment.event.start}~${segment.event.end} · ${task.category}${deadline ? ' · ' + deadline : ''}`}>
               {segment.continued && '‹ '}{segment.event.type === '마감' && '⚑ '}{!segment.event.allDay && <span className="event-time">{segment.event.type === '마감' ? segment.event.endTime : segment.event.startTime} </span>}{segment.event.title}{segment.continues && ' ›'}{deadline && <span className="event-dday">{deadline}</span>}
             </button>
-            {period && !segment.continues && <span draggable role="button" tabIndex={0} aria-label={`${segment.event.title} 종료일 변경`} title="끌어서 종료일 변경 · Enter로 상세 편집" className="resize-handle" onClick={e => { e.stopPropagation(); open(segment.event.id); }} onKeyDown={e => { if (e.key === 'Enter') open(segment.event.id); }} onDragStart={e => drag(e, segment.event.id, segment.event.end, true)}>⋮</span>}
+            {period && !segment.continues && !locked && <span draggable role="button" tabIndex={0} aria-label={`${segment.event.title} 종료일 변경`} title="끌어서 종료일 변경 · Enter로 상세 편집" className="resize-handle" onClick={e => { e.stopPropagation(); open(segment.event.id); }} onKeyDown={e => { if (e.key === 'Enter') open(segment.event.id); }} onDragStart={e => drag(e, segment.event.id, segment.event.end, true)}>⋮</span>}
           </div>;
         })}
         {week.map((date, column) => {
