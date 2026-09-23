@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 export const CATEGORIES = ['수업', '학교업무', '연수', '개인', '미지정'] as const;
 export const STATUSES = ['예정', '진행 중', '완료'] as const;
-export const TYPES = ['일반 일정', '기간', '마감', '발표'] as const;
+export const TYPES = ['일반 일정', '기간', '마감', '발표', '장기'] as const;
 export type Category = string;
 export type Status = typeof STATUSES[number];
 export type EventType = typeof TYPES[number];
@@ -192,3 +192,32 @@ export function shareLabel(data: Data) {
   const name = data.settings.profile.name.trim();
   return name ? `${name}님의 업무달력` : '공유된 업무달력';
 }
+
+// ── 반복 일정과 긴 기간 ────────────────────────────────
+export const WEEKDAY_PICKS = [{ value: 1, label: '월' }, { value: 2, label: '화' }, { value: 3, label: '수' }, { value: 4, label: '목' }, { value: 5, label: '금' }, { value: 6, label: '토' }, { value: 0, label: '일' }];
+export const MAX_REPEAT = 200;
+
+/** 시작일~종료일 사이에서 고른 요일에 해당하는 날짜를 모두 돌려준다. */
+export function weeklyDates(start: string, end: string, weekdays: number[], limit = MAX_REPEAT) {
+  const days: string[] = [];
+  if (!validDate(start) || !validDate(end) || start > end || !weekdays.length) return days;
+  const span = dayDiff(end, start);
+  if (span > 3650) return days; // 10년을 넘는 범위는 실수로 보고 만들지 않는다.
+  for (let i = 0; i <= span && days.length < limit; i++) {
+    const date = addDays(start, i);
+    if (weekdays.includes(weekdayOf(date))) days.push(date);
+  }
+  return days;
+}
+
+export function validateRepeat(start: string, end: string, weekdays: number[]) {
+  if (!validDate(start) || !validDate(end)) return '올바른 날짜를 입력해 주세요. (1900~2200년)';
+  if (start > end) return '종료일은 시작일과 같거나 이후여야 합니다.';
+  if (!weekdays.length) return '반복할 요일을 하나 이상 골라 주세요.';
+  if (dayDiff(end, start) > 3650) return '반복 기간이 너무 깁니다. 10년 안으로 줄여 주세요.';
+  if (!weeklyDates(start, end, weekdays).length) return '그 기간에 해당하는 요일이 없습니다.';
+  return '';
+}
+
+/** 긴 기간 일정은 날짜 칸 아래쪽에 작고 흐리게 따로 깔아 둔다. */
+export function isBand(event: Schedule) { return event.type === '장기'; }

@@ -598,3 +598,25 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
    흰색 대비 약 6.2:1 로 작은 글씨에도 충분하다. */
 .deadline-badge { background: #b1332a; color: #fff; font-weight: 600; }
 .event-dday { background: #b1332a; color: #fff; font-weight: 600; }
+
+/* ── 추가 방식 (한 번 · 반복 · 긴 기간) ─────────────── */
+.add-modes { display: flex; gap: 6px; margin-bottom: 18px; }
+.add-modes button { flex: 1; background: transparent; font-size: 13px; padding: 9px 8px; min-height: 42px; }
+.add-modes button[aria-pressed=true] { background: var(--clay-surface-card); border-color: var(--clay-ink); font-weight: 500; }
+.weekday-picks { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 2px; }
+.weekday-picks button { width: 42px; min-height: 42px; padding: 0; background: transparent; font-size: 14px; border-radius: var(--clay-radius-pill); }
+.weekday-picks button[aria-pressed=true] { background: var(--clay-teal); border-color: var(--clay-teal); color: var(--clay-on-dark, #fff); font-weight: 600; }
+
+/* 긴 기간 일정은 날짜 칸 아래쪽에 작고 흐리게 깔린다. */
+.band-grid { position: absolute; left: 0; right: 0; bottom: 4px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 15px; gap: 2px 0; pointer-events: none; }
+.band { pointer-events: auto; border: 0; border-radius: 3px; margin-inline: 3px; padding: 0 5px; min-height: 0; height: 15px; display: flex; align-items: center; justify-content: flex-start; background: var(--cat-bg); color: var(--clay-ink); opacity: .6; font-size: 10.5px; line-height: 15px; overflow: hidden; }
+.band:hover { opacity: .9; background: var(--cat-bg); border-color: transparent; }
+.band > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.band.continued { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
+.band.continues { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
+.week.has-bands .event-grid { padding-bottom: 26px; }
+@media (max-width: 699px) {
+  .band-grid { grid-auto-rows: 7px; bottom: 2px; }
+  .band { height: 7px; padding: 0; font-size: 0; }
+  .week.has-bands .event-grid { padding-bottom: 16px; }
+}

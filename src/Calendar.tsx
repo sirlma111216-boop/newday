@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent } from 'react';
-import { addDays, calendarDays, dayDiff, deadlineLabel, seoulToday, weekSegments, categoryStyleOf, schoolHolidayOn, weekdayLabels, weekdayOf, type Data, type Schedule, type Settings } from './model';
+import { addDays, calendarDays, dayDiff, deadlineLabel, seoulToday, weekSegments, categoryStyleOf, isBand, schoolHolidayOn, weekdayLabels, weekdayOf, type Data, type Schedule, type Settings } from './model';
 
 type Props = {
   data: Data;
@@ -95,9 +95,10 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
     <div className="weekdays">{weekdayLabels(prefs.weekStart).map((day, i) => { const w = (i + prefs.weekStart) % 7; return <span key={day} className={w === 0 ? 'sun' : w === 6 ? 'sat' : ''}>{day}</span>; })}</div>
     {Array.from({ length: days.length / 7 }, (_, weekIndex) => {
       const week = days.slice(weekIndex * 7, weekIndex * 7 + 7);
-      const segments = weekSegments(events, week);
+      const segments = weekSegments(events.filter(e => !isBand(e)), week);
+      const bands = weekSegments(events.filter(isBand), week);
       const preview = draft && draft.start <= week[6] && draft.end >= week[0] ? { start: Math.max(0, dayDiff(draft.start, week[0])), end: Math.min(6, dayDiff(draft.end, week[0])) } : null;
-      return <div className="week" key={week[0]}>
+      return <div className={'week ' + (bands.length ? 'has-bands' : '')} key={week[0]}>
         <div className="day-backgrounds">{week.map((date, dayIndex) => { const publicName = holidays[date]; const school = schoolHolidayOn(settings, date); const weekday = weekdayOf(date); const restDay = weekday === 0 || !!publicName; return <div key={date} data-date={date} className={'day ' + (date.slice(0, 7) !== month.slice(0, 7) ? 'muted ' : '') + (restDay ? 'rest-day ' : '') + (school ? 'school-holiday ' : '') + (weekday === 0 ? 'sun ' : weekday === 6 ? 'sat ' : '')} onClick={() => { if (compact || locked) showDay(date); }} onPointerDown={e => startSelection(e, date)} onPointerMove={extendSelection} onPointerUp={finishSelection} onPointerCancel={() => { anchor.current = null; setSelecting(false); }} onDragOver={e => { if (e.dataTransfer.types.includes('application/work-calendar')) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); } }} onDragLeave={e => e.currentTarget.classList.remove('drag-over')} onDrop={e => drop(e, date)}>
           <button className={'day-number ' + (date === today ? 'today' : '')} aria-label={compact || locked ? `${date} 일정 보기` : `${date} 일정 추가`} aria-current={date === today ? 'date' : undefined} onClick={e => { e.stopPropagation(); if (compact || locked) showDay(date); else if (e.detail === 0) begin(date); }}>{Number(date.slice(8))}</button>
           {date === today && <span className="today-label">오늘</span>}
@@ -123,6 +124,8 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
           const hidden = segments.filter(segment => segment.lane >= prefs.maxPerCell && segment.start <= column && segment.start + segment.span > column).length;
           return hidden > 0 && <button key={date} className="more-events" style={{ gridColumn: column + 1, gridRow: prefs.maxPerCell + 1 }} onClick={() => showDay(date)}>외 {hidden}개</button>;
         })}</div>
+
+        {bands.length > 0 && <div className="band-grid">{bands.map(segment => { const task = data.tasks.find(item => item.id === segment.event.taskId)!; return <button key={segment.event.id} className={'band ' + (segment.continued ? 'continued' : '') + (segment.continues ? ' continues' : '')} style={{ ...categoryStyleOf(settings, task.category), gridColumn: `${segment.start + 1} / span ${segment.span}`, gridRow: segment.lane + 1 }} title={`${segment.event.title} · ${segment.event.start}~${segment.event.end}`} onClick={() => open(segment.event.id)}><span>{segment.event.title}</span></button>; })}</div>}
 
         {preview && draft && <div className="inline-grid"><div className={'inline-entry cat-4 ' + (draft.start !== draft.end ? 'range-entry' : '')} style={{ gridColumn: (preview.start + 1) + ' / span ' + (preview.end - preview.start + 1) }}>
           {draft.start !== draft.end && <div className="draft-range-line" aria-label={draft.start + '부터 ' + draft.end + '까지'}/>}

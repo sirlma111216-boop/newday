@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildShareSnapshot, newShareCode, formatShareCode, normalizeShareCode, validShareCode, blankTodo, moveTodo, splitTodos, toggleTodo, defaultSettings, defaultCalendarPrefs, calendarVars, weekdayLabels, weekdayOf, DENSITY_HEIGHT, FONT_SCALE, shiftMonth, fallbackCategory, schoolHolidayOn, validateSchoolHoliday, addDays, calendarDays, seedData, weekSegments, dayDiff, seoulToday, blankEvent, blankTask, dueNotices, eventTimestamp, validateEvent, safeLink, filteredEvents, searchEvents, cancelPending, type Data } from '../src/model.ts';
+import { weeklyDates, validateRepeat, isBand, buildShareSnapshot, newShareCode, formatShareCode, normalizeShareCode, validShareCode, blankTodo, moveTodo, splitTodos, toggleTodo, defaultSettings, defaultCalendarPrefs, calendarVars, weekdayLabels, weekdayOf, DENSITY_HEIGHT, FONT_SCALE, shiftMonth, fallbackCategory, schoolHolidayOn, validateSchoolHoliday, addDays, calendarDays, seedData, weekSegments, dayDiff, seoulToday, blankEvent, blankTask, dueNotices, eventTimestamp, validateEvent, safeLink, filteredEvents, searchEvents, cancelPending, type Data } from '../src/model.ts';
 import { parseBackup, loadData, saveData } from '../src/storage.ts';
 test('서울 날짜는 UTC와 구별되며 윤년과 월 경계에서 날짜 계산이 정확하다', () => { assert.equal(seoulToday(new Date('2026-09-12T16:00:00Z')), '2026-09-13'); assert.equal(addDays('2024-02-28', 1), '2024-02-29'); assert.equal(addDays('2026-12-31', 1), '2027-01-01'); assert.equal(dayDiff('2026-10-02', '2026-09-29'), 3); });
 test('월간은 일요일 시작, 토요일 종료이며 마지막 날짜까지 포함한다', () => { for (const month of ['2026-02-01', '2026-05-01', '2026-09-01']) { const d = calendarDays(month); assert.equal(d.length % 7, 0); assert.equal(new Date(d[0] + 'T00:00Z').getUTCDay(), 0); assert.equal(new Date(d.at(-1)! + 'T00:00Z').getUTCDay(), 6); } });
@@ -313,4 +313,47 @@ test('공유 번호는 길고 헷갈리는 글자가 없으며 붙임표를 넣�
   assert.ok(!validShareCode('SHORT'));
   // 매번 다른 번호가 나온다.
   assert.equal(new Set(Array.from({ length: 50 }, () => newShareCode())).size, 50);
+});
+
+test('반복 일정은 고른 요일마다 날짜를 만들고 범위를 벗어나면 막는다', () => {
+  // 2026-09-01 은 화요일. 월요일만 고르면 9/7, 9/14, 9/21, 9/28.
+  assert.deepEqual(weeklyDates('2026-09-01', '2026-09-30', [1]), ['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28']);
+  // 여러 요일을 고르면 날짜 순서대로 섞여 나온다.
+  assert.deepEqual(weeklyDates('2026-09-01', '2026-09-08', [1, 3]), ['2026-09-02', '2026-09-07']);
+  // 시작일과 종료일도 해당 요일이면 포함한다.
+  assert.deepEqual(weeklyDates('2026-09-07', '2026-09-07', [1]), ['2026-09-07']);
+  // 달을 넘겨도 이어진다.
+  assert.equal(weeklyDates('2026-09-28', '2026-10-12', [1]).length, 3);
+
+  assert.deepEqual(weeklyDates('2026-09-01', '2026-09-30', []), []);
+  assert.deepEqual(weeklyDates('2026-09-30', '2026-09-01', [1]), []);
+  assert.deepEqual(weeklyDates('2026-02-30', '2026-03-05', [1]), []);
+  // 최대 개수를 넘지 않는다.
+  assert.equal(weeklyDates('2026-01-01', '2029-12-31', [1, 2, 3, 4, 5], 50).length, 50);
+
+  assert.equal(validateRepeat('2026-09-01', '2026-09-30', [1]), '');
+  assert.match(validateRepeat('2026-09-01', '2026-09-30', []), /요일/);
+  assert.match(validateRepeat('2026-09-30', '2026-09-01', [1]), /종료일/);
+  assert.match(validateRepeat('2026-02-30', '2026-03-05', [1]), /올바른 날짜/);
+  // 그 기간에 해당 요일이 하나도 없으면 알려 준다.
+  assert.match(validateRepeat('2026-09-01', '2026-09-03', [0]), /해당하는 요일이 없습니다/);
+});
+
+test('긴 기간 일정은 장기 유형으로 저장되고 따로 구분된다', () => {
+  const data = seedData('2026-09-21');
+  const task = { ...blankTask(), name: '학기 전체' };
+  const band = { ...blankEvent('2026-09-01'), title: '2학기', taskId: task.id, end: '2026-12-31', type: '장기' as const };
+  data.tasks.push(task); data.events.push(band);
+
+  assert.ok(isBand(band));
+  assert.ok(!isBand(data.events[0]));
+  // 장기 유형도 백업에 그대로 저장·복원된다.
+  const restored = parseBackup(JSON.parse(JSON.stringify(data)));
+  assert.equal(restored.events.find(e => e.id === band.id)!.type, '장기');
+  // 주 단위로 잘라도 기간 전체를 덮는다.
+  const week = Array.from({ length: 7 }, (_, i) => addDays('2026-09-20', i));
+  const segments = weekSegments([band], week);
+  assert.equal(segments.length, 1);
+  assert.equal(segments[0].span, 7);
+  assert.ok(segments[0].continued && segments[0].continues);
 });
