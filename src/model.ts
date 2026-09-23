@@ -14,7 +14,7 @@ export type Profile = { name: string; school: string; department: string; note: 
 export type SchoolHoliday = { id: string; name: string; start: string; end: string };
 export type CategoryDef = { id: string; name: string; color: string };
 export type CalendarPrefs = { weekStart: 0 | 1; density: 'compact' | 'normal' | 'roomy'; fontScale: 'small' | 'normal' | 'large'; fontFamily: 'default' | 'system' | 'malgun' | 'nanum'; maxPerCell: number; saturdayColor: 'blue' | 'red'; defaultView: 'auto' | 'calendar' | 'list' };
-export type Extras = { todo: boolean };
+export type Extras = { todo: boolean; qr: boolean };
 export type TodoItem = { id: string; text: string; done: boolean; createdAt: number; doneAt: number };
 export type Settings = { profile: Profile; calendar: CalendarPrefs; extras: Extras; categories: CategoryDef[]; holidays: SchoolHoliday[]; holidayKey: string };
 export type Data = { version: 1; tasks: Task[]; events: Schedule[]; notices: Notice[]; delivered: string[]; todos: TodoItem[]; settings: Settings };
@@ -66,7 +66,7 @@ export const DEFAULT_CATEGORIES: CategoryDef[] = [
   { id: 'cat-none', name: FALLBACK_CATEGORY, color: '#e0dfdb' },
 ];
 export function defaultCalendarPrefs(): CalendarPrefs { return { weekStart: 0, density: 'normal', fontScale: 'normal', fontFamily: 'default', maxPerCell: 3, saturdayColor: 'blue', defaultView: 'auto' }; }
-export function defaultExtras(): Extras { return { todo: false }; }
+export function defaultExtras(): Extras { return { todo: false, qr: false }; }
 export function defaultSettings(): Settings { return { profile: { name: '', school: '', department: '', note: '' }, calendar: defaultCalendarPrefs(), extras: defaultExtras(), categories: DEFAULT_CATEGORIES.map(c => ({ ...c })), holidays: [], holidayKey: '' }; }
 export function categoryColor(settings: Settings, name: string) { return settings.categories.find(c => c.name === name)?.color ?? '#e0dfdb'; }
 // --cat-* 를 직접 넣어 .cat-0 같은 고정 클래스 없이도 같은 배색을 쓴다.
@@ -181,7 +181,7 @@ export function buildShareSnapshot(data: Data, categories: string[]): Data {
     settings: {
       profile: { name: '', school: '', department: '', note: '' },
       calendar: { ...data.settings.calendar },
-      extras: { todo: false },
+      extras: { todo: false, qr: false },
       categories: data.settings.categories.filter(c => allowed.has(c.name)).map(c => ({ ...c })),
       holidays: data.settings.holidays.map(h => ({ ...h })),
       holidayKey: '',

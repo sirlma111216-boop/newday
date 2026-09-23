@@ -1,6 +1,6 @@
 import { useRef, useState, type DragEvent } from 'react';
 import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, ListTodo, RotateCcw } from 'lucide-react';
-import { Modal } from './Editor';
+import { FloatingPanel } from './FloatingPanel';
 import { blankTodo, moveTodo, splitTodos, todoDoneLabel, toggleTodo, type Data, type TodoItem } from './model';
 
 type Tab = 'open' | 'done';
@@ -65,13 +65,13 @@ export function TodoDialog({ data, onClose, commit, toast }: { data: Data; onClo
     <button type="button" className="icon-button" aria-label={`${item.text} 삭제`} onClick={() => void save(todos.filter(t => t.id !== item.id))}><Trash2 size={15}/></button>
   </li>;
 
-  return <Modal title="할 일 목록" onClose={onClose}>
+  return <FloatingPanel name="todo" title="할 일 목록" icon={<ListTodo size={18}/>} onClose={onClose} footer={<button type="button" onClick={onClose}>닫기</button>}>
     <div className="settings-tabs" role="tablist">
       <button role="tab" aria-selected={tab === 'open'} className={tab === 'open' ? 'active' : ''} onClick={() => setTab('open')}><ListTodo size={16}/>해야 할 일 {open.length > 0 && <span className="todo-count">{open.length}</span>}</button>
       <button role="tab" aria-selected={tab === 'done'} className={tab === 'done' ? 'active' : ''} onClick={() => setTab('done')}>완료한 일 {done.length > 0 && <span className="todo-count">{done.length}</span>}</button>
     </div>
 
-    <div className="modal-content">
+    <div className="panel-content">
       {tab === 'open' && <>
         <div className="todo-add">
           <input aria-label="할 일 입력" maxLength={1000} placeholder="할 일을 적어 주세요" value={text}
@@ -92,6 +92,5 @@ export function TodoDialog({ data, onClose, commit, toast }: { data: Data; onClo
       {error && <p className="form-error" role="alert">{error}</p>}
     </div>
 
-    <div className="modal-actions"><button type="button" onClick={onClose}>닫기</button></div>
-  </Modal>;
+  </FloatingPanel>;
 }

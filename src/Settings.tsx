@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Trash2, User, CalendarOff, Tags, Check, CalendarDays, Bell, Puzzle, ListTodo, Share2, Copy, Eye } from 'lucide-react';
+import { Plus, Trash2, User, CalendarOff, Tags, Check, CalendarDays, Bell, Puzzle, ListTodo, Share2, Copy, Eye, QrCode } from 'lucide-react';
 import { Modal } from './Editor';
 import { loadHolidays } from './holidays';
 import { NotificationSettings } from './Panels';
@@ -173,6 +173,11 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
           <input type="checkbox" checked={extras.todo} onChange={e => changeExtras({ todo: e.target.checked })}/>
           <span className="extra-icon"><ListTodo size={18}/></span>
           <span className="extra-text"><strong>할 일 목록</strong><small>해야 할 일과 완료한 일을 나눠 적어 두는 메모입니다. 순서를 바꿀 수 있고, 완료한 시각이 함께 남습니다.</small></span>
+        </label>
+        <label className="extra-row">
+          <input type="checkbox" checked={extras.qr} onChange={e => changeExtras({ qr: e.target.checked })}/>
+          <span className="extra-icon"><QrCode size={18}/></span>
+          <span className="extra-text"><strong>QR 코드</strong><small>주소를 넣으면 QR 코드를 만들고, QR 그림을 붙여 넣거나 열면 주소를 읽어 냅니다.</small></span>
         </label>
       </>}
 

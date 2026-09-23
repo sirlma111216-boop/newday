@@ -620,3 +620,63 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
   .band { height: 7px; padding: 0; font-size: 0; }
   .week.has-bands .event-grid { padding-bottom: 16px; }
 }
+
+/* ── 떠 있는 창 (할 일 목록 · QR) ──────────────────── */
+/* 화면을 막지 않으므로 달력을 보면서 쓸 수 있다. 제목 줄을 끌어 옮긴다. */
+.floating-panel { position: fixed; z-index: 45; width: min(460px, calc(100vw - 24px)); max-height: min(78vh, 720px); display: flex; flex-direction: column; background: var(--clay-canvas); border: 1px solid var(--border); border-radius: var(--clay-radius-lg); box-shadow: 0 24px 70px color-mix(in srgb, var(--clay-ink) 22%, transparent); overflow: hidden; }
+.floating-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--clay-surface-card); cursor: grab; touch-action: none; user-select: none; }
+.floating-head:active { cursor: grabbing; }
+.floating-head h2 { display: flex; align-items: center; gap: 9px; font: 500 18px/1.3 var(--clay-display); letter-spacing: -.4px; }
+.floating-head .icon-button { cursor: pointer; }
+.floating-body { overflow-y: auto; flex: 1; min-height: 0; }
+.floating-body .settings-tabs { position: static; padding: 10px 16px 0; }
+.panel-content { padding: 16px; }
+.floating-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--clay-canvas); }
+.floating-foot button { min-height: 42px; padding-inline: 18px; }
+/* 좁은 화면에서는 끌어 옮기기가 어려우므로 아래쪽에 붙인 창으로 연다. */
+.floating-panel.sheet { left: 0; right: 0; bottom: 0; width: 100%; max-height: 86vh; border-radius: var(--clay-radius-lg) var(--clay-radius-lg) 0 0; border-bottom: 0; }
+.floating-panel.sheet .floating-head { cursor: default; }
+
+/* ── QR 코드 ───────────────────────────────────────── */
+.qr-result { text-align: center; }
+.qr-result img { width: min(240px, 100%); height: auto; border: 1px solid var(--border); border-radius: var(--clay-radius-md); background: #fff; padding: 8px; }
+.qr-result .button-row { justify-content: center; }
+.qr-drop { border: 1px dashed color-mix(in srgb, var(--clay-ink) 30%, transparent); border-radius: var(--clay-radius-lg); padding: 20px 16px; text-align: center; color: var(--clay-body); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.qr-drop.over { background: var(--clay-surface-card); border-color: var(--clay-ink); }
+.qr-drop p { font-size: 13px; line-height: 1.7; }
+.qr-drop .button-row { justify-content: center; margin-bottom: 0; }
+.file-pick { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: var(--clay-radius-md); padding: 8px 12px; font-size: 13px; min-height: 40px; cursor: pointer; background: var(--clay-canvas); }
+.file-pick input { display: none; }
+.qr-found { margin-top: 16px; padding: 14px; background: var(--clay-surface-card); border-radius: var(--clay-radius-lg); }
+.qr-text { word-break: break-all; font-size: 14px; line-height: 1.7; margin: 4px 0 6px; }
+.qr-open { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: var(--clay-radius-md); padding: 8px 12px; font-size: 13px; min-height: 40px; text-decoration: none; color: var(--clay-ink); background: var(--clay-canvas); }
+
+/* 설정 탭 오른쪽 여백이 모자라 마지막 탭이 가장자리에 붙어 있었다. */
+.settings-tabs { padding-right: 32px; }
+.settings-tabs::after { content: ''; flex: 0 0 8px; }
+
+/* 설정은 탭이 일곱 개라 650px 안에서는 마지막 탭이 가장자리에 붙는다. 창을 넓히고 탭을 조금 좁힌다. */
+.modal:has(.settings-tabs) { width: min(780px, calc(100vw - 32px)); }
+.modal .settings-tabs { padding-left: 20px; padding-right: 20px; gap: 4px; }
+.modal .settings-tabs button { padding: 10px 11px; }
+@media (max-width: 699px) {
+  .modal:has(.settings-tabs) { width: 100vw; }
+  .modal .settings-tabs { padding-left: 16px; padding-right: 20px; }
+}
+
+/* 추가 기능 아이콘이 늘면서 휴대전화 상단이 다시 3줄이 됐다. 한 줄에 들어오도록 줄인다. */
+@media (max-width: 699px) {
+  .topbar { gap: 4px; }
+  .brand { font-size: 17px; min-width: 0; flex-shrink: 1; }
+  .brand-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .extra-button { padding: 5px; }
+  .add-button { padding: 8px 10px; }
+}
+
+/* 이름이 길면 제목이 넓어져 '일정 추가'가 또 밀려난다.
+   추가 버튼을 검색과 같은 줄에 두어 이름 길이와 상관없이 2줄로 고정한다. */
+@media (max-width: 699px) {
+  .search-box { order: 9; width: auto; flex: 1 1 120px; min-width: 0; }
+  .search { width: 100%; max-width: none; }
+  .add-button { order: 10; flex-shrink: 0; }
+}
