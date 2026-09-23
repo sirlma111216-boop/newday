@@ -153,3 +153,45 @@ test('달력 표시 설정은 기본값을 채우고 이상한 값은 되돌린�
   assert.equal(vars['--cal-font-scale'], FONT_SCALE.large);
   assert.equal(vars['--sat-color'], '#c2453c');
 });
+
+test('분류 개명은 id 기준이라 이미 있는 이름으로 바꿔도 서로 뒤섞이지 않는다', () => {
+  // 설정 화면이 저장할 때 만드는 개명표를 그대로 재현한다.
+  const renameMap = (before: { id: string; name: string }[], after: { id: string; name: string }[], fallback: string) => {
+    const moves: Record<string, string> = {};
+    for (const original of before) {
+      const current = after.find(c => c.id === original.id);
+      if (!current) moves[original.name] = fallback;
+      else if (current.name !== original.name) moves[original.name] = current.name;
+    }
+    return moves;
+  };
+  const apply = (tasks: string[], moves: Record<string, string>, known: Set<string>, fallback: string) =>
+    tasks.map(c => { const moved = moves[c] ?? c; return known.has(moved) ? moved : fallback; });
+
+  const before = defaultSettings().categories.map(c => ({ id: c.id, name: c.name }));
+  // 수업 → 학교업무, 학교업무 → 외부강의 처럼 이름이 한 칸씩 밀리는 연쇄 개명
+  const after = [
+    { id: 'cat-class', name: '학교업무' },
+    { id: 'cat-work', name: '외부강의' },
+    { id: 'cat-training', name: '경희대' },
+    { id: 'cat-personal', name: 'Spirit' },
+    { id: 'cat-none', name: '공모전' },
+  ];
+  const moves = renameMap(before, after, '공모전');
+  assert.deepEqual(moves, { 수업: '학교업무', 학교업무: '외부강의', 연수: '경희대', 개인: 'Spirit', 미지정: '공모전' });
+
+  const known = new Set(after.map(c => c.name));
+  assert.deepEqual(apply(['수업', '학교업무', '연수', '개인', '미지정'], moves, known, '공모전'),
+    ['학교업무', '외부강의', '경희대', 'Spirit', '공모전']);
+
+  // 두 분류의 이름을 맞바꿔도 서로 정확히 교차한다.
+  const swapped = [{ id: 'cat-class', name: '학교업무' }, { id: 'cat-work', name: '수업' }, ...before.slice(2)];
+  const swapMoves = renameMap(before, swapped, '미지정');
+  assert.deepEqual(apply(['수업', '학교업무'], swapMoves, new Set(swapped.map(c => c.name)), '미지정'), ['학교업무', '수업']);
+
+  // 분류를 지우면 그 업무만 기본 분류로 간다.
+  const removed = before.filter(c => c.id !== 'cat-training');
+  const removeMoves = renameMap(before, removed, '미지정');
+  assert.deepEqual(removeMoves, { 연수: '미지정' });
+  assert.deepEqual(apply(['수업', '연수'], removeMoves, new Set(removed.map(c => c.name)), '미지정'), ['수업', '미지정']);
+});

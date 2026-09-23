@@ -13,8 +13,6 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
   // 좁은 화면에서는 탭이 가로로 넘치므로, 고른 탭이 화면 밖에 남지 않게 끌어온다.
   const tabsRef = useRef<HTMLDivElement>(null);
   useEffect(() => { tabsRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }, [tab]);
-  // 분류 이름을 바꿔도 업무가 따라오도록 '원래 이름 → 현재 이름'을 들고 있는다.
-  const [renames, setRenames] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -27,18 +25,34 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
   const changeProfile = (values: Partial<SettingsData['profile']>) => { setError(''); setDraft(previous => ({ ...previous, profile: { ...previous.profile, ...values } })); };
   const usage = (name: string) => data.tasks.filter(t => t.category === name).length;
 
+  // 이름이 아니라 id 로만 다룬다. 이름으로 찾으면 '수업→학교업무'처럼 이미 있는 이름으로 바꿀 때
+  // 서로 다른 분류가 같은 이름을 잠깐 공유해 엉뚱한 분류가 바뀐다.
   function renameCategory(category: CategoryDef, name: string) {
-    const original = Object.keys(renames).find(key => renames[key] === category.name) ?? category.name;
-    setRenames({ ...renames, [original]: name });
-    update({ categories: draft.categories.map(c => c.id === category.id ? { ...c, name } : c) });
+    setError('');
+    setDraft(previous => ({ ...previous, categories: previous.categories.map(c => c.id === category.id ? { ...c, name } : c) }));
+  }
+
+  function recolorCategory(category: CategoryDef, color: string) {
+    setError('');
+    setDraft(previous => ({ ...previous, categories: previous.categories.map(c => c.id === category.id ? { ...c, color } : c) }));
   }
 
   function removeCategory(category: CategoryDef) {
     if (draft.categories.length <= 1) { setError('분류는 최소 하나가 필요합니다.'); return; }
-    const original = Object.keys(renames).find(key => renames[key] === category.name) ?? category.name;
-    const target = draft.categories.find(c => c.id !== category.id)!.name;
-    setRenames({ ...renames, [original]: target });
-    update({ categories: draft.categories.filter(c => c.id !== category.id) });
+    setError('');
+    setDraft(previous => ({ ...previous, categories: previous.categories.filter(c => c.id !== category.id) }));
+  }
+
+  /** 저장할 때 id 를 맞대어 '원래 이름 → 바뀐 이름'을 만든다. 지운 분류는 남은 기본 분류로 보낸다. */
+  function renameMap(categories: CategoryDef[]) {
+    const fallback = categories.find(c => c.name === FALLBACK_CATEGORY)?.name ?? categories[0].name;
+    const moves: Record<string, string> = {};
+    for (const original of data.settings.categories) {
+      const current = categories.find(c => c.id === original.id);
+      if (!current) moves[original.name] = fallback;
+      else if (current.name !== original.name) moves[original.name] = current.name;
+    }
+    return moves;
   }
 
   async function checkKey() {
@@ -64,7 +78,7 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
     setSaving(true);
     try {
       const profile = { name: draft.profile.name.trim(), school: draft.profile.school.trim(), department: draft.profile.department.trim(), note: draft.profile.note.trim() };
-      if (await onSave({ ...draft, profile, categories, holidays, holidayKey: draft.holidayKey.trim() }, renames)) { toast('설정을 저장했습니다.'); onClose(); }
+      if (await onSave({ ...draft, profile, categories, holidays, holidayKey: draft.holidayKey.trim() }, renameMap(categories))) { toast('설정을 저장했습니다.'); onClose(); }
       else setError('저장하지 못했습니다. 입력 내용은 유지됩니다. 연결 상태를 확인하고 다시 시도해 주세요.');
     } finally { setSaving(false); }
   }
@@ -141,7 +155,7 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
           </div>
           <div className="color-choices" role="group" aria-label={`분류 ${index + 1} 색 선택`}>
             {CATEGORY_COLORS.map(color => <button type="button" key={color} className="color-swatch" style={{ background: color }} aria-label={color} aria-pressed={category.color === color}
-              onClick={() => update({ categories: draft.categories.map(c => c.id === category.id ? { ...c, color } : c) })}>{category.color === color && <Check size={14}/>}</button>)}
+              onClick={() => recolorCategory(category, color)}>{category.color === color && <Check size={14}/>}</button>)}
           </div>
         </div>)}
         <button type="button" className="text-button" onClick={() => update({ categories: [...draft.categories, { id: uid(), name: '', color: CATEGORY_COLORS[draft.categories.length % CATEGORY_COLORS.length] }] })}><Plus size={16}/>분류 추가</button>
