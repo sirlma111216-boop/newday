@@ -530,3 +530,10 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
   footer > span:last-child { display: none; }
   footer { font-size: 11px; }
 }
+
+/* 분류 전체 선택 줄 */
+.filter-all { font-weight: 500; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 4px; }
+.dot-all { background: transparent; border: 1px dashed color-mix(in srgb, var(--clay-ink) 40%, transparent); }
+
+/* 관련 자료는 주소 한 칸만 쓴다. */
+.link-edit > input { flex: 1; min-width: 0; background: var(--clay-canvas); }

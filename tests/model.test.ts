@@ -195,3 +195,21 @@ test('분류 개명은 id 기준이라 이미 있는 이름으로 바꿔도 서�
   assert.deepEqual(removeMoves, { 연수: '미지정' });
   assert.deepEqual(apply(['수업', '연수'], removeMoves, new Set(removed.map(c => c.name)), '미지정'), ['수업', '미지정']);
 });
+
+test('자료 링크는 표시 이름 없이 주소만으로 저장된다', () => {
+  const data = seedData('2026-09-21');
+  // 이름 없이 주소만 있는 링크도 그대로 복원된다.
+  data.tasks[0].links = [{ id: 'link-noname', name: '', url: 'onenote:https://d.docs.live.net/a/내 전자 필기장/구역.one#공문&end' }];
+  const restored = parseBackup(JSON.parse(JSON.stringify(data)));
+  assert.deepEqual(restored.tasks[0].links, data.tasks[0].links);
+
+  // 예전에 붙여 둔 이름은 지우지 않고 그대로 보존한다.
+  const legacy = structuredClone(data);
+  legacy.tasks[0].links = [{ id: 'link-named', name: '전환기교육강사', url: 'https://khgms-my.sharepoint.com/personal/doc.one' }];
+  assert.equal(parseBackup(JSON.parse(JSON.stringify(legacy))).tasks[0].links[0].name, '전환기교육강사');
+
+  // 주소가 잘못된 링크는 이름과 무관하게 계속 거부한다.
+  const bad = structuredClone(data);
+  bad.tasks[0].links = [{ id: 'link-bad', name: '', url: 'http://example.com' }];
+  assert.throws(() => parseBackup(JSON.parse(JSON.stringify(bad))));
+});
