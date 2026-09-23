@@ -593,3 +593,8 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
   .share-bar { padding: 8px 14px; }
   .share-where { font-size: 12px; }
 }
+
+/* D-day 배지 ─ 분홍 바탕에 검은 글씨라 잘 읽히지 않아 흰 글씨·진한 빨강으로 바꾼다.
+   흰색 대비 약 6.2:1 로 작은 글씨에도 충분하다. */
+.deadline-badge { background: #b1332a; color: #fff; font-weight: 600; }
+.event-dday { background: #b1332a; color: #fff; font-weight: 600; }
