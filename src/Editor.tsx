@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { X, Plus, Trash2, Link2, CheckSquare, ChevronDown, Globe } from 'lucide-react';
-import { blankTask, CATEGORIES, REMINDERS, safeLink, uid, validateEvent, type Data, type Schedule, type Task } from './model';
+import { blankTask, categoryStyle, fallbackCategory, REMINDERS, safeLink, uid, validateEvent, type Data, type Schedule, type Task } from './model';
 
 export function Modal({ title, children, onClose, wide = false }: { title: string; children: ReactNode; onClose: () => void; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -30,7 +30,7 @@ function OneNoteIcon({ size = 18 }: { size?: number }) {
 export function Editor({ data, event, onSave, onClose, mode = 'modal', onDelete }:{ data: Data; event: Schedule; onSave: (event: Schedule, task: Task) => Promise<boolean>; onClose: () => void; mode?: 'modal' | 'panel'; onDelete?: () => void }) {
   const existing = data.events.some(e => e.id === event.id);
   const [draft, setDraft] = useState({ ...event });
-  const [task, setTask] = useState<Task>(() => structuredClone(data.tasks.find(t => t.id === event.taskId) || blankTask()));
+  const [task, setTask] = useState<Task>(() => structuredClone(data.tasks.find(t => t.id === event.taskId) || blankTask(fallbackCategory(data.settings))));
   const [advanced, setAdvanced] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -92,7 +92,7 @@ export function Editor({ data, event, onSave, onClose, mode = 'modal', onDelete 
       <label className="field">종료일<input type="date" min="1900-01-01" max="2200-12-31" value={draft.end} onInput={e => { const end = e.currentTarget.value; update({ end, type: draft.type === '마감' ? '마감' : inferredType(draft.start, end) }); }}/></label>
     </div>
     <p className="help">종료일까지 포함해서 달력에 표시합니다.</p>
-    <div className="category-choices" role="group" aria-label="분류 선택">{CATEGORIES.map((category, index) => <button type="button" key={category} className={`cat-${index}`} aria-pressed={task.category === category} onClick={() => changeTask({ category })}><span className="category-dot"/>{category}</button>)}</div>
+    <div className="category-choices" role="group" aria-label="분류 선택">{data.settings.categories.map(category => <button type="button" key={category.id} style={categoryStyle(category.color)} aria-pressed={task.category === category.name} onClick={() => changeTask({ category: category.name })}><span className="category-dot"/>{category.name}</button>)}</div>
     <section className="form-section"><h3><Link2 size={17}/>관련 자료</h3>{task.links.map((link, index) => <div className="link-edit" key={link.id}><div><input aria-label={`링크 ${index + 1} 표시 이름`} placeholder="표시 이름" maxLength={300} value={link.name} onChange={e => changeTask({ links: task.links.map(item => item.id === link.id ? { ...item, name: e.currentTarget.value } : item) })}/><input aria-label={`링크 ${index + 1} 주소`} placeholder="https:// 또는 onenote:" maxLength={10000} value={link.url} onChange={e => changeTask({ links: task.links.map(item => item.id === link.id ? { ...item, url: e.currentTarget.value } : item) })}/></div>{safeLink(link.url.trim()) && <a className="icon-button" href={link.url.trim()} target={link.url.trim().toLowerCase().startsWith('https:') ? '_blank' : undefined} rel="noopener noreferrer" aria-label={`링크 ${index + 1} 열기`} title="링크 열기">{isOneNoteLink(link.url.trim()) ? <OneNoteIcon size={20}/> : <Globe size={19} className="web-link-icon"/>}</a>}<button type="button" className="icon-button" aria-label={`링크 ${index + 1} 삭제`} onClick={() => changeTask({ links: task.links.filter(item => item.id !== link.id) })}><Trash2 size={16}/></button></div>)}<button type="button" className="text-button" onClick={() => changeTask({ links: [...task.links, { id: uid(), name: '', url: '' }] })}><Plus size={16}/>링크 추가</button><p className="help">원노트에서 ‘단락 링크 복사’ 후 원래 주소 전체를 붙여 넣으세요.<br/>원노트 설치 및 접근 권한에 따라 열리는 방식이 달라질 수 있습니다.</p></section>
     <section className="form-section simple-options">
       <label className="check-label"><input type="checkbox" checked={draft.allDay} onChange={e => update({ allDay: e.target.checked })}/>시간을 정하지 않은 종일 일정</label>

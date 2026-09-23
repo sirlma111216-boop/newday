@@ -394,3 +394,33 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
 .link-edit a.icon-button{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:6px;border-radius:var(--clay-radius-pill)}
 .link-edit a.icon-button:hover{background:var(--clay-surface-card)}
 .web-link-icon{color:var(--clay-teal)}
+
+/* 휴일 표시 ─ 토·일요일과 공휴일은 빨간 날짜, 공휴일·학교 휴일은 이름까지 */
+.day.rest-day .day-number{color:#c2453c}
+.day.rest-day .day-number.today{color:#fff!important}
+.day.school-holiday{background:color-mix(in srgb,var(--clay-coral) 9%,transparent)}
+.holiday-name{display:block;margin-top:1px;font-size:10px;line-height:1.35;color:#8a7f72;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.holiday-name.public{color:#c2453c;font-weight:500}
+.day.muted .holiday-name{opacity:.5}
+
+/* 설정 화면 */
+.settings-tabs{display:flex;gap:6px;padding:12px 24px 0;border-bottom:1px solid var(--border);background:var(--clay-canvas);position:sticky;top:57px;z-index:4}
+.settings-tabs button{border:0;background:transparent;border-radius:var(--clay-radius-md) var(--clay-radius-md) 0 0;padding:10px 14px;font-size:14px;color:var(--clay-muted);min-height:44px}
+.settings-tabs button.active{background:var(--clay-surface-card);color:var(--clay-ink);font-weight:500}
+.settings-section{border-top:1px solid var(--border);margin-top:22px;padding-top:20px}
+.settings-section:first-child{border-top:0;margin-top:0;padding-top:0}
+.settings-section h3{font-size:16px;font-weight:500;margin-bottom:10px}
+.holiday-edit{background:var(--clay-surface-card);border-radius:var(--clay-radius-lg);padding:12px;margin:10px 0}
+.holiday-edit>input{width:100%;margin-bottom:10px;background:var(--clay-canvas)}
+.holiday-edit .field{margin-bottom:0}
+.holiday-edit .field-row{align-items:flex-end;gap:10px}
+.category-edit{background:var(--clay-surface-card);border-radius:var(--clay-radius-lg);padding:12px;margin:10px 0}
+.category-edit-top{display:flex;align-items:center;gap:10px}
+.category-edit-top input{flex:1;min-width:0;background:var(--clay-canvas)}
+.category-usage{font-size:12px;color:var(--clay-muted);white-space:nowrap}
+.color-choices{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.color-swatch{width:30px;height:30px;padding:0;border-radius:var(--clay-radius-pill);border:1px solid var(--border);color:var(--clay-ink)}
+.color-swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--clay-teal)}
+/* 날짜 칸에 휴일 이름 줄이 생기므로 일정 막대가 시작하는 위치를 내린다. */
+.event-grid{padding-top:48px}
+.holiday-name{font-size:11px}

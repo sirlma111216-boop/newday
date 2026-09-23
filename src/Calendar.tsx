@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent } from 'react';
-import { CATEGORIES, addDays, calendarDays, dayDiff, deadlineLabel, seoulToday, weekSegments, type Data, type Schedule } from './model';
+import { addDays, calendarDays, dayDiff, deadlineLabel, seoulToday, weekSegments, categoryStyleOf, schoolHolidayOn, type Data, type Schedule, type Settings } from './model';
 
 type Props = {
   data: Data;
+  settings: Settings;
+  holidays: Record<string, string>;
   events: Schedule[];
   month: string;
   open: (id: string) => void;
@@ -11,7 +13,7 @@ type Props = {
   move: (id: string, date: string, origin: string, resize: boolean) => void;
 };
 
-export function Calendar({ data, events, month, open, quickAdd, showDay, move }: Props) {
+export function Calendar({ data, settings, holidays, events, month, open, quickAdd, showDay, move }: Props) {
   const [draft, setDraft] = useState<{ start: string; end: string; title: string } | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -86,16 +88,17 @@ export function Calendar({ data, events, month, open, quickAdd, showDay, move }:
       const segments = weekSegments(events, week);
       const preview = draft && draft.start <= week[6] && draft.end >= week[0] ? { start: Math.max(0, dayDiff(draft.start, week[0])), end: Math.min(6, dayDiff(draft.end, week[0])) } : null;
       return <div className="week" key={week[0]}>
-        <div className="day-backgrounds">{week.map(date => <div key={date} data-date={date} className={'day ' + (date.slice(0, 7) !== month.slice(0, 7) ? 'muted ' : '')} onPointerDown={e => startSelection(e, date)} onPointerMove={extendSelection} onPointerUp={finishSelection} onPointerCancel={() => { anchor.current = null; setSelecting(false); }} onDragOver={e => { if (e.dataTransfer.types.includes('application/work-calendar')) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); } }} onDragLeave={e => e.currentTarget.classList.remove('drag-over')} onDrop={e => drop(e, date)}>
+        <div className="day-backgrounds">{week.map((date, dayIndex) => { const publicName = holidays[date]; const school = schoolHolidayOn(settings, date); const restDay = dayIndex === 0 || dayIndex === 6 || !!publicName; return <div key={date} data-date={date} className={'day ' + (date.slice(0, 7) !== month.slice(0, 7) ? 'muted ' : '') + (restDay ? 'rest-day ' : '') + (school ? 'school-holiday ' : '')} onPointerDown={e => startSelection(e, date)} onPointerMove={extendSelection} onPointerUp={finishSelection} onPointerCancel={() => { anchor.current = null; setSelecting(false); }} onDragOver={e => { if (e.dataTransfer.types.includes('application/work-calendar')) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); } }} onDragLeave={e => e.currentTarget.classList.remove('drag-over')} onDrop={e => drop(e, date)}>
           <button className={'day-number ' + (date === today ? 'today' : '')} aria-label={`${date} 일정 추가`} aria-current={date === today ? 'date' : undefined} onClick={e => { e.stopPropagation(); if (e.detail === 0) begin(date); }}>{Number(date.slice(8))}</button>
           {date === today && <span className="today-label">오늘</span>}
-        </div>)}</div>
+          {(publicName || school) && <span className={'holiday-name ' + (publicName ? 'public' : '')} title={[publicName, school?.name].filter(Boolean).join(' · ')}>{publicName || school!.name}</span>}
+        </div>; })}</div>
 
         <div className="event-grid">{segments.filter(segment => segment.lane < 3).map(segment => {
           const task = data.tasks.find(item => item.id === segment.event.taskId)!;
           const period = segment.event.start !== segment.event.end;
           const deadline = deadlineLabel(segment.event);
-          return <div key={segment.event.id} className={`event cat-${CATEGORIES.indexOf(task.category)} ${period ? 'period' : 'single'} ${segment.continued ? 'continued' : ''} ${segment.continues ? 'continues' : ''}`} style={{ gridColumn: `${segment.start + 1} / span ${segment.span}`, gridRow: segment.lane + 1 }} draggable onDragStart={e => {
+          return <div key={segment.event.id} className={`event ${period ? 'period' : 'single'} ${segment.continued ? 'continued' : ''} ${segment.continues ? 'continues' : ''}`} style={{ ...categoryStyleOf(settings, task.category), gridColumn: `${segment.start + 1} / span ${segment.span}`, gridRow: segment.lane + 1 }} draggable onDragStart={e => {
             const rect = e.currentTarget.getBoundingClientRect();
             const offset = Math.min(segment.span - 1, Math.max(0, Math.floor((e.clientX - rect.left) / (rect.width / segment.span))));
             drag(e, segment.event.id, addDays(week[segment.start], offset));

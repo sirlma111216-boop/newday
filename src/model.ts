@@ -1,7 +1,8 @@
+import type { CSSProperties } from 'react';
 export const CATEGORIES = ['수업', '학교업무', '연수', '개인', '미지정'] as const;
 export const STATUSES = ['예정', '진행 중', '완료'] as const;
 export const TYPES = ['일반 일정', '기간', '마감', '발표'] as const;
-export type Category = typeof CATEGORIES[number];
+export type Category = string;
 export type Status = typeof STATUSES[number];
 export type EventType = typeof TYPES[number];
 export type Link = { id: string; name: string; url: string };
@@ -9,7 +10,11 @@ export type Check = { id: string; text: string; done: boolean };
 export type Task = { id: string; name: string; category: Category; status: Status; memo: string; links: Link[]; checklist: Check[] };
 export type Schedule = { id: string; title: string; taskId: string; type: EventType; start: string; end: string; allDay: boolean; startTime: string; endTime: string; reminders: number[]; reminderBase: 'start' | 'end'; revision: number; createdAt: number; reminderSince: number };
 export type Notice = { id: string; eventId: string; title: string; dueAt: number; read: boolean };
-export type Data = { version: 1; tasks: Task[]; events: Schedule[]; notices: Notice[]; delivered: string[] };
+export type Profile = { name: string; school: string; department: string; note: string };
+export type SchoolHoliday = { id: string; name: string; start: string; end: string };
+export type CategoryDef = { id: string; name: string; color: string };
+export type Settings = { profile: Profile; categories: CategoryDef[]; holidays: SchoolHoliday[]; holidayKey: string };
+export type Data = { version: 1; tasks: Task[]; events: Schedule[]; notices: Notice[]; delivered: string[]; settings: Settings };
 export const REMINDERS = [{ value: 10080, label: '7일 전' }, { value: 1440, label: '1일 전' }, { value: 60, label: '1시간 전' }, { value: 0, label: '정각' }];
 export const KEY = 'work-calendar-v1';
 export const uid = () => crypto.randomUUID();
@@ -26,7 +31,7 @@ export function safeLink(url: string) { if (url !== url.trim() || /[\u0000-\u001
 export function eventTimestamp(event: Schedule, base = event.reminderBase) { const isEnd = base === 'end'; return Date.parse(`${isEnd ? event.end : event.start}T${event.allDay ? (isEnd ? '23:59' : '09:00') : (isEnd ? event.endTime : event.startTime)}:00+09:00`); }
 export function deadlineLabel(event: Schedule, today = seoulToday(), now = Date.now()) { if (event.type !== '마감') return ''; const diff = dayDiff(event.end, today); if (eventTimestamp(event, 'end') < now) return '기한 경과'; return diff === 0 ? 'D-day' : `D-${diff}`; }
 export function validateEvent(event: Schedule) { if (!event.title.trim()) return '일정명을 입력해 주세요.'; if (!validDate(event.start) || !validDate(event.end)) return '올바른 날짜를 입력해 주세요. (1900~2200년)'; if (event.start > event.end) return '종료일은 시작일과 같거나 이후여야 합니다.'; if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(event.startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(event.endTime)) return '올바른 시간을 입력해 주세요.'; if (!event.allDay && event.start === event.end && event.startTime > event.endTime) return '종료 시간은 시작 시간과 같거나 이후여야 합니다.'; return ''; }
-export function blankTask(): Task { return { id: uid(), name: '', category: '미지정', status: '예정', memo: '', links: [], checklist: [] }; }
+export function blankTask(category: string = FALLBACK_CATEGORY): Task { return { id: uid(), name: '', category, status: '예정', memo: '', links: [], checklist: [] }; }
 export function blankEvent(date = seoulToday()): Schedule { return { id: uid(), title: '', taskId: '', type: '일반 일정', start: date, end: date, allDay: true, startTime: '09:00', endTime: '18:00', reminders: [], reminderBase: 'start', revision: 0, createdAt: Date.now(), reminderSince: Date.now() }; }
 export function cancelPending(data: Data, eventId: string) { return { ...data, notices: data.notices.filter(n => n.eventId !== eventId), delivered: data.delivered.filter(id => !id.startsWith(eventId + ':')) }; }
 export function dueNotices(data: Data, now = Date.now()): Notice[] { const sent = new Set(data.delivered); return data.events.flatMap(event => event.reminders.flatMap(offset => { const dueAt = eventTimestamp(event) - offset * 60000; const id = `${event.id}:${event.revision}:${event.reminderBase}:${offset}`; if (dueAt > now || dueAt < event.reminderSince || sent.has(id)) return []; return [{ id, eventId: event.id, title: `${event.title} · ${REMINDERS.find(r => r.value === offset)!.label}`, dueAt, read: false }]; })); }
@@ -39,8 +44,32 @@ export function seedData(today = seoulToday()): Data {
   tasks[1].checklist = [{ id: uid(), text: '학급별 회신 확인', done: false }];
   const first = today.slice(0, 7) + '-01'; const last = addDays(shiftMonth(today, 1), -1);
   const make = (title: string, index: number, start: string, end = start, type: EventType = '일반 일정', timed = false): Schedule => ({ ...blankEvent(start), title: title + ' — 예시', taskId: tasks[index].id, end, type, allDay: !timed, reminderBase: type === '마감' ? 'end' : 'start', startTime: timed ? '16:00' : '09:00', endTime: timed ? '17:00' : '18:00' });
-  return { version: 1, tasks, events: [make('수업안 경진대회 · 접수', 0, addDays(today, -5), addDays(today, 12), '기간'), make('수업안 제출', 0, addDays(today, 3), addDays(today, 3), '마감', true), make('수업안 결과 발표', 0, addDays(today, 15), undefined, '발표'), make('학년 협의회', 1, today, today, '일반 일정', true), make('가정통신문 회신', 1, addDays(today, 2), addDays(today, 2), '마감'), make('디지털 수업 연수', 2, addDays(today, 5), addDays(today, 7), '기간'), make('산책과 독서', 3, today), make('학습자료 정리', 4, addDays(today, -2)), make('안전 점검 주간', 5, addDays(first, -2), addDays(first, 3), '기간'), make('다음 달 수업 준비', 1, addDays(last, -2), addDays(last, 4), '기간'), make('동아리 활동', 1, addDays(today, 1)), make('온라인 연수 신청', 2, addDays(today, 4), addDays(today, 4), '마감')], notices: [], delivered: [] };
+  return { version: 1, tasks, events: [make('수업안 경진대회 · 접수', 0, addDays(today, -5), addDays(today, 12), '기간'), make('수업안 제출', 0, addDays(today, 3), addDays(today, 3), '마감', true), make('수업안 결과 발표', 0, addDays(today, 15), undefined, '발표'), make('학년 협의회', 1, today, today, '일반 일정', true), make('가정통신문 회신', 1, addDays(today, 2), addDays(today, 2), '마감'), make('디지털 수업 연수', 2, addDays(today, 5), addDays(today, 7), '기간'), make('산책과 독서', 3, today), make('학습자료 정리', 4, addDays(today, -2)), make('안전 점검 주간', 5, addDays(first, -2), addDays(first, 3), '기간'), make('다음 달 수업 준비', 1, addDays(last, -2), addDays(last, 4), '기간'), make('동아리 활동', 1, addDays(today, 1)), make('온라인 연수 신청', 2, addDays(today, 4), addDays(today, 4), '마감')], notices: [], delivered: [], settings: defaultSettings() };
 }
 export type Segment = { event: Schedule; start: number; span: number; lane: number; continued: boolean; continues: boolean };
 export function weekSegments(events: Schedule[], days: string[]): Segment[] { const lanes: number[] = []; return events.filter(e => e.start <= days[6] && e.end >= days[0]).sort((a, b) => (a.start < days[0] ? days[0] : a.start).localeCompare(b.start < days[0] ? days[0] : b.start) || dayDiff(b.end, b.start) - dayDiff(a.end, a.start) || a.startTime.localeCompare(b.startTime) || a.id.localeCompare(b.id)).map(event => { const start = Math.max(0, dayDiff(event.start, days[0])); const end = Math.min(6, dayDiff(event.end, days[0])); let lane = lanes.findIndex(last => last < start); if (lane === -1) lane = lanes.length; lanes[lane] = end; return { event, start, span: end - start + 1, lane, continued: event.start < days[0], continues: event.end > days[6] }; }); }
 export function filteredEvents(data: Data, query: string, categories: Category[], incomplete: boolean) { const q = query.trim().toLocaleLowerCase(); return data.events.filter(e => { const task = data.tasks.find(t => t.id === e.taskId); return task && categories.includes(task.category) && (!incomplete || task.checklist.some(item => !item.done)) && (!q || [e.title, task.name, task.memo, ...task.checklist.map(c => c.text), ...task.links.map(l => l.name)].join(' ').toLocaleLowerCase().includes(q)); }); }
+
+
+// ── 설정 ──────────────────────────────────────────────
+// 분류 색은 클레이 디자인의 파스텔을 그대로 쓴다. 저장값은 배경색이고 테두리는 여기서 짙게 만든다.
+export const FALLBACK_CATEGORY = '미지정';
+export const CATEGORY_COLORS = ['#b8a4ed', '#ffb084', '#a4d4c5', '#e8b94a', '#ff9f9f', '#9ec5f0', '#f2a7c3', '#cde08a', '#d9b8f0', '#ffd9a0', '#a8dce8', '#e0dfdb'];
+export const DEFAULT_CATEGORIES: CategoryDef[] = [
+  { id: 'cat-class', name: '수업', color: '#b8a4ed' },
+  { id: 'cat-work', name: '학교업무', color: '#ffb084' },
+  { id: 'cat-training', name: '연수', color: '#a4d4c5' },
+  { id: 'cat-personal', name: '개인', color: '#e8b94a' },
+  { id: 'cat-none', name: FALLBACK_CATEGORY, color: '#e0dfdb' },
+];
+export function defaultSettings(): Settings { return { profile: { name: '', school: '', department: '', note: '' }, categories: DEFAULT_CATEGORIES.map(c => ({ ...c })), holidays: [], holidayKey: '' }; }
+export function categoryColor(settings: Settings, name: string) { return settings.categories.find(c => c.name === name)?.color ?? '#e0dfdb'; }
+// --cat-* 를 직접 넣어 .cat-0 같은 고정 클래스 없이도 같은 배색을 쓴다.
+export function categoryStyle(color: string): CSSProperties { return { '--cat-bg': color, '--cat-text': 'var(--clay-ink)', '--cat-border': `color-mix(in srgb, ${color} 65%, var(--clay-teal))` } as CSSProperties; }
+export function categoryStyleOf(settings: Settings, name: string) { return categoryStyle(categoryColor(settings, name)); }
+export function fallbackCategory(settings: Settings) { return settings.categories.find(c => c.name === FALLBACK_CATEGORY)?.name ?? settings.categories.at(-1)?.name ?? FALLBACK_CATEGORY; }
+
+// 학교 지정 휴일은 기간으로 저장하므로 하루씩 펼쳐서 찾는다.
+export function schoolHolidayOn(settings: Settings, date: string) { return settings.holidays.find(h => h.start <= date && date <= h.end); }
+export function validateSchoolHoliday(holiday: SchoolHoliday) { if (!holiday.name.trim()) return '휴일 명칭을 입력해 주세요.'; if (!validDate(holiday.start) || !validDate(holiday.end)) return '올바른 날짜를 입력해 주세요. (1900~2200년)'; if (holiday.start > holiday.end) return '종료일은 시작일과 같거나 이후여야 합니다.'; return ''; }
+export function blankSchoolHoliday(date = seoulToday()): SchoolHoliday { return { id: uid(), name: '', start: date, end: date }; }
