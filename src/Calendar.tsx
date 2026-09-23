@@ -37,7 +37,7 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
     })?.dataset.date;
   };
   const startSelection = (e: PointerEvent<HTMLDivElement>, date: string) => {
-    if (e.button !== 0 || !begin(date)) return;
+    if (compact || e.button !== 0 || !begin(date)) return;
     anchor.current = date;
     setSelecting(true);
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -66,6 +66,14 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
     finally { savingRef.current = false; setSaving(false); }
   };
 
+  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 699px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 699px)');
+    const sync = () => setCompact(query.matches);
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+
   const prefs = settings.calendar; const days = calendarDays(month, prefs.weekStart), today = seoulToday();
   const drag = (e: DragEvent, id: string, origin: string, resize = false) => {
     e.stopPropagation();
@@ -88,8 +96,8 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
       const segments = weekSegments(events, week);
       const preview = draft && draft.start <= week[6] && draft.end >= week[0] ? { start: Math.max(0, dayDiff(draft.start, week[0])), end: Math.min(6, dayDiff(draft.end, week[0])) } : null;
       return <div className="week" key={week[0]}>
-        <div className="day-backgrounds">{week.map((date, dayIndex) => { const publicName = holidays[date]; const school = schoolHolidayOn(settings, date); const weekday = weekdayOf(date); const restDay = weekday === 0 || !!publicName; return <div key={date} data-date={date} className={'day ' + (date.slice(0, 7) !== month.slice(0, 7) ? 'muted ' : '') + (restDay ? 'rest-day ' : '') + (school ? 'school-holiday ' : '') + (weekday === 0 ? 'sun ' : weekday === 6 ? 'sat ' : '')} onPointerDown={e => startSelection(e, date)} onPointerMove={extendSelection} onPointerUp={finishSelection} onPointerCancel={() => { anchor.current = null; setSelecting(false); }} onDragOver={e => { if (e.dataTransfer.types.includes('application/work-calendar')) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); } }} onDragLeave={e => e.currentTarget.classList.remove('drag-over')} onDrop={e => drop(e, date)}>
-          <button className={'day-number ' + (date === today ? 'today' : '')} aria-label={`${date} 일정 추가`} aria-current={date === today ? 'date' : undefined} onClick={e => { e.stopPropagation(); if (e.detail === 0) begin(date); }}>{Number(date.slice(8))}</button>
+        <div className="day-backgrounds">{week.map((date, dayIndex) => { const publicName = holidays[date]; const school = schoolHolidayOn(settings, date); const weekday = weekdayOf(date); const restDay = weekday === 0 || !!publicName; return <div key={date} data-date={date} className={'day ' + (date.slice(0, 7) !== month.slice(0, 7) ? 'muted ' : '') + (restDay ? 'rest-day ' : '') + (school ? 'school-holiday ' : '') + (weekday === 0 ? 'sun ' : weekday === 6 ? 'sat ' : '')} onClick={() => { if (compact) showDay(date); }} onPointerDown={e => startSelection(e, date)} onPointerMove={extendSelection} onPointerUp={finishSelection} onPointerCancel={() => { anchor.current = null; setSelecting(false); }} onDragOver={e => { if (e.dataTransfer.types.includes('application/work-calendar')) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); } }} onDragLeave={e => e.currentTarget.classList.remove('drag-over')} onDrop={e => drop(e, date)}>
+          <button className={'day-number ' + (date === today ? 'today' : '')} aria-label={compact ? `${date} 일정 보기` : `${date} 일정 추가`} aria-current={date === today ? 'date' : undefined} onClick={e => { e.stopPropagation(); if (compact) showDay(date); else if (e.detail === 0) begin(date); }}>{Number(date.slice(8))}</button>
           {date === today && <span className="today-label">오늘</span>}
           {(publicName || school) && <span className={'holiday-name ' + (publicName ? 'public' : '')} title={[publicName, school?.name].filter(Boolean).join(' · ')}>{publicName || school!.name}</span>}
         </div>; })}</div>
@@ -110,8 +118,8 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
           </div>;
         })}
         {week.map((date, column) => {
-          const hidden = segments.filter(segment => segment.lane >= 3 && segment.start <= column && segment.start + segment.span > column).length;
-          return hidden > 0 && <button key={date} className="more-events" style={{ gridColumn: column + 1, gridRow: 4 }} onClick={() => showDay(date)}>외 {hidden}개</button>;
+          const hidden = segments.filter(segment => segment.lane >= prefs.maxPerCell && segment.start <= column && segment.start + segment.span > column).length;
+          return hidden > 0 && <button key={date} className="more-events" style={{ gridColumn: column + 1, gridRow: prefs.maxPerCell + 1 }} onClick={() => showDay(date)}>외 {hidden}개</button>;
         })}</div>
 
         {preview && draft && <div className="inline-grid"><div className={'inline-entry cat-4 ' + (draft.start !== draft.end ? 'range-entry' : '')} style={{ gridColumn: (preview.start + 1) + ' / span ' + (preview.end - preview.start + 1) }}>
