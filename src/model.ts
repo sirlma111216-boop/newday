@@ -14,8 +14,10 @@ export type Profile = { name: string; school: string; department: string; note: 
 export type SchoolHoliday = { id: string; name: string; start: string; end: string };
 export type CategoryDef = { id: string; name: string; color: string };
 export type CalendarPrefs = { weekStart: 0 | 1; density: 'compact' | 'normal' | 'roomy'; fontScale: 'small' | 'normal' | 'large'; fontFamily: 'default' | 'system' | 'malgun' | 'nanum'; maxPerCell: number; saturdayColor: 'blue' | 'red'; defaultView: 'auto' | 'calendar' | 'list' };
-export type Settings = { profile: Profile; calendar: CalendarPrefs; categories: CategoryDef[]; holidays: SchoolHoliday[]; holidayKey: string };
-export type Data = { version: 1; tasks: Task[]; events: Schedule[]; notices: Notice[]; delivered: string[]; settings: Settings };
+export type Extras = { todo: boolean };
+export type TodoItem = { id: string; text: string; done: boolean; createdAt: number; doneAt: number };
+export type Settings = { profile: Profile; calendar: CalendarPrefs; extras: Extras; categories: CategoryDef[]; holidays: SchoolHoliday[]; holidayKey: string };
+export type Data = { version: 1; tasks: Task[]; events: Schedule[]; notices: Notice[]; delivered: string[]; todos: TodoItem[]; settings: Settings };
 export const REMINDERS = [{ value: 10080, label: '7일 전' }, { value: 1440, label: '1일 전' }, { value: 60, label: '1시간 전' }, { value: 0, label: '정각' }];
 export const KEY = 'work-calendar-v1';
 export const uid = () => crypto.randomUUID();
@@ -45,7 +47,7 @@ export function seedData(today = seoulToday()): Data {
   tasks[1].checklist = [{ id: uid(), text: '학급별 회신 확인', done: false }];
   const first = today.slice(0, 7) + '-01'; const last = addDays(shiftMonth(today, 1), -1);
   const make = (title: string, index: number, start: string, end = start, type: EventType = '일반 일정', timed = false): Schedule => ({ ...blankEvent(start), title: title + ' — 예시', taskId: tasks[index].id, end, type, allDay: !timed, reminderBase: type === '마감' ? 'end' : 'start', startTime: timed ? '16:00' : '09:00', endTime: timed ? '17:00' : '18:00' });
-  return { version: 1, tasks, events: [make('수업안 경진대회 · 접수', 0, addDays(today, -5), addDays(today, 12), '기간'), make('수업안 제출', 0, addDays(today, 3), addDays(today, 3), '마감', true), make('수업안 결과 발표', 0, addDays(today, 15), undefined, '발표'), make('학년 협의회', 1, today, today, '일반 일정', true), make('가정통신문 회신', 1, addDays(today, 2), addDays(today, 2), '마감'), make('디지털 수업 연수', 2, addDays(today, 5), addDays(today, 7), '기간'), make('산책과 독서', 3, today), make('학습자료 정리', 4, addDays(today, -2)), make('안전 점검 주간', 5, addDays(first, -2), addDays(first, 3), '기간'), make('다음 달 수업 준비', 1, addDays(last, -2), addDays(last, 4), '기간'), make('동아리 활동', 1, addDays(today, 1)), make('온라인 연수 신청', 2, addDays(today, 4), addDays(today, 4), '마감')], notices: [], delivered: [], settings: defaultSettings() };
+  return { version: 1, tasks, events: [make('수업안 경진대회 · 접수', 0, addDays(today, -5), addDays(today, 12), '기간'), make('수업안 제출', 0, addDays(today, 3), addDays(today, 3), '마감', true), make('수업안 결과 발표', 0, addDays(today, 15), undefined, '발표'), make('학년 협의회', 1, today, today, '일반 일정', true), make('가정통신문 회신', 1, addDays(today, 2), addDays(today, 2), '마감'), make('디지털 수업 연수', 2, addDays(today, 5), addDays(today, 7), '기간'), make('산책과 독서', 3, today), make('학습자료 정리', 4, addDays(today, -2)), make('안전 점검 주간', 5, addDays(first, -2), addDays(first, 3), '기간'), make('다음 달 수업 준비', 1, addDays(last, -2), addDays(last, 4), '기간'), make('동아리 활동', 1, addDays(today, 1)), make('온라인 연수 신청', 2, addDays(today, 4), addDays(today, 4), '마감')], notices: [], delivered: [], todos: [], settings: defaultSettings() };
 }
 export type Segment = { event: Schedule; start: number; span: number; lane: number; continued: boolean; continues: boolean };
 export function weekSegments(events: Schedule[], days: string[]): Segment[] { const lanes: number[] = []; return events.filter(e => e.start <= days[6] && e.end >= days[0]).sort((a, b) => (a.start < days[0] ? days[0] : a.start).localeCompare(b.start < days[0] ? days[0] : b.start) || dayDiff(b.end, b.start) - dayDiff(a.end, a.start) || a.startTime.localeCompare(b.startTime) || a.id.localeCompare(b.id)).map(event => { const start = Math.max(0, dayDiff(event.start, days[0])); const end = Math.min(6, dayDiff(event.end, days[0])); let lane = lanes.findIndex(last => last < start); if (lane === -1) lane = lanes.length; lanes[lane] = end; return { event, start, span: end - start + 1, lane, continued: event.start < days[0], continues: event.end > days[6] }; }); }
@@ -64,7 +66,8 @@ export const DEFAULT_CATEGORIES: CategoryDef[] = [
   { id: 'cat-none', name: FALLBACK_CATEGORY, color: '#e0dfdb' },
 ];
 export function defaultCalendarPrefs(): CalendarPrefs { return { weekStart: 0, density: 'normal', fontScale: 'normal', fontFamily: 'default', maxPerCell: 3, saturdayColor: 'blue', defaultView: 'auto' }; }
-export function defaultSettings(): Settings { return { profile: { name: '', school: '', department: '', note: '' }, calendar: defaultCalendarPrefs(), categories: DEFAULT_CATEGORIES.map(c => ({ ...c })), holidays: [], holidayKey: '' }; }
+export function defaultExtras(): Extras { return { todo: false }; }
+export function defaultSettings(): Settings { return { profile: { name: '', school: '', department: '', note: '' }, calendar: defaultCalendarPrefs(), extras: defaultExtras(), categories: DEFAULT_CATEGORIES.map(c => ({ ...c })), holidays: [], holidayKey: '' }; }
 export function categoryColor(settings: Settings, name: string) { return settings.categories.find(c => c.name === name)?.color ?? '#e0dfdb'; }
 // --cat-* 를 직접 넣어 .cat-0 같은 고정 클래스 없이도 같은 배색을 쓴다.
 export function categoryStyle(color: string): CSSProperties { return { '--cat-bg': color, '--cat-text': 'var(--clay-ink)', '--cat-border': `color-mix(in srgb, ${color} 65%, var(--clay-teal))` } as CSSProperties; }
@@ -114,4 +117,31 @@ export function calendarVars(prefs: CalendarPrefs): CSSProperties {
     // body 는 .app 의 조상이라 변수만 덮으면 글꼴이 바뀌지 않는다. 직접 지정해 상속시킨다.
     fontFamily: FONT_STACK[prefs.fontFamily] ?? FONT_STACK.default,
   } as CSSProperties;
+}
+
+// ── 할 일 목록 (추가 기능) ─────────────────────────────
+export function blankTodo(text = ''): TodoItem { return { id: uid(), text, done: false, createdAt: Date.now(), doneAt: 0 }; }
+/** 해야 할 일은 직접 정한 순서를 그대로, 완료한 일은 최근에 끝낸 것이 위로 온다. */
+export function splitTodos(todos: TodoItem[]) {
+  return {
+    open: todos.filter(t => !t.done),
+    done: todos.filter(t => t.done).sort((a, b) => b.doneAt - a.doneAt || b.createdAt - a.createdAt),
+  };
+}
+/** 해야 할 일 안에서 from 번째를 to 번째 자리로 옮긴다. 완료한 일의 순서는 건드리지 않는다. */
+export function moveTodo(todos: TodoItem[], id: string, to: number) {
+  const open = todos.filter(t => !t.done);
+  const from = open.findIndex(t => t.id === id);
+  if (from < 0) return todos;
+  const target = Math.max(0, Math.min(open.length - 1, to));
+  if (from === target) return todos;
+  const [moved] = open.splice(from, 1);
+  open.splice(target, 0, moved);
+  return [...open, ...todos.filter(t => t.done)];
+}
+export function toggleTodo(todos: TodoItem[], id: string, now = Date.now()) {
+  return todos.map(t => t.id === id ? { ...t, done: !t.done, doneAt: !t.done ? now : 0 } : t);
+}
+export function todoDoneLabel(at: number) {
+  return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(at);
 }

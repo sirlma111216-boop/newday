@@ -1,7 +1,7 @@
 import { defaultSettings, type Data } from './model.ts';
 import { parseBackup } from './storage.ts';
 
-export const emptyData = (): Data => ({ version: 1, tasks: [], events: [], notices: [], delivered: [], settings: defaultSettings() });
+export const emptyData = (): Data => ({ version: 1, tasks: [], events: [], notices: [], delivered: [], todos: [], settings: defaultSettings() });
 export type CloudRecord = { revision: number; payload: string };
 export class CloudConflict extends Error {
   constructor() { super('다른 기기에서 먼저 변경했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요. 입력 내용은 편집창에 유지됩니다.'); }

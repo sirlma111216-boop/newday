@@ -537,3 +537,40 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
 
 /* 관련 자료는 주소 한 칸만 쓴다. */
 .link-edit > input { flex: 1; min-width: 0; background: var(--clay-canvas); }
+
+/* ── 추가 기능 ─────────────────────────────────────── */
+.extra-button { position: relative; margin-left: 4px; color: var(--clay-body); }
+.extra-button:hover { background: var(--clay-surface-card); }
+.extra-count { position: absolute; top: 0; right: -2px; min-width: 16px; padding: 0 4px; border-radius: 20px; font-size: 10px; line-height: 16px; color: var(--clay-on-dark, #fff); background: var(--clay-teal); border: 2px solid var(--clay-canvas); }
+.extra-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px; background: var(--clay-surface-card); border-radius: var(--clay-radius-lg); cursor: pointer; }
+.extra-row > input { margin-top: 3px; }
+.extra-icon { display: flex; padding: 7px; border-radius: var(--clay-radius-md); background: var(--clay-canvas); color: var(--clay-teal); }
+.extra-text { min-width: 0; }
+.extra-text strong { display: block; font-size: 15px; font-weight: 500; }
+.extra-text small { display: block; margin-top: 4px; line-height: 1.7; color: var(--clay-muted); }
+
+/* 할 일 목록 */
+.todo-count { font-size: 11px; background: var(--clay-surface-strong, var(--clay-canvas)); border-radius: 20px; padding: 1px 6px; margin-left: 2px; }
+.todo-add { display: flex; gap: 8px; margin-bottom: 14px; }
+.todo-add input { flex: 1; min-width: 0; background: var(--clay-canvas); }
+.todo-add button { flex-shrink: 0; min-height: 44px; }
+.todo-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.todo-item { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 4px; background: var(--clay-surface-card); border-radius: var(--clay-radius-md); }
+.todo-item.done { background: transparent; border: 1px solid var(--border); }
+.todo-grip { display: flex; color: var(--clay-muted); cursor: grab; flex-shrink: 0; }
+.todo-item[draggable=true]:active { cursor: grabbing; }
+.todo-check { width: 22px; height: 22px; flex-shrink: 0; padding: 0; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--clay-ink) 35%, transparent); background: transparent; }
+.todo-check[aria-checked=true] { border-color: var(--clay-teal); background: var(--clay-teal); }
+.todo-check[aria-checked=true]::after { content: ''; display: block; width: 5px; height: 9px; margin: -2px auto 0; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.todo-text { flex: 1; min-width: 0; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+.todo-item.done .todo-text { text-decoration: line-through; color: var(--clay-muted); }
+.todo-when { font-size: 12px; color: var(--clay-muted); white-space: nowrap; flex-shrink: 0; }
+.todo-order { display: flex; flex-shrink: 0; }
+.todo-order .icon-button { padding: 4px; }
+.todo-item .icon-button { color: var(--clay-muted); }
+.todo-item .icon-button:hover { color: var(--clay-ink); background: var(--clay-canvas); }
+@media (max-width: 699px) {
+  .todo-grip { display: none; }
+  .todo-text { font-size: 16px; }
+  .todo-when { font-size: 11px; }
+}

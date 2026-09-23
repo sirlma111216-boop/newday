@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Trash2, User, CalendarOff, Tags, Check, CalendarDays, Bell } from 'lucide-react';
+import { Plus, Trash2, User, CalendarOff, Tags, Check, CalendarDays, Bell, Puzzle, ListTodo } from 'lucide-react';
 import { Modal } from './Editor';
 import { loadHolidays } from './holidays';
 import { NotificationSettings } from './Panels';
-import { CATEGORY_COLORS, FALLBACK_CATEGORY, defaultCalendarPrefs, type CalendarPrefs, type Schedule, blankSchoolHoliday, categoryStyle, seoulToday, uid, validateSchoolHoliday, type CategoryDef, type Data, type SchoolHoliday, type Settings as SettingsData } from './model';
+import { CATEGORY_COLORS, FALLBACK_CATEGORY, defaultCalendarPrefs, defaultExtras, type CalendarPrefs, type Extras, type Schedule, blankSchoolHoliday, categoryStyle, seoulToday, uid, validateSchoolHoliday, type CategoryDef, type Data, type SchoolHoliday, type Settings as SettingsData } from './model';
 
-export type SettingsTab = 'profile' | 'calendar' | 'holiday' | 'category' | 'notice';
+export type SettingsTab = 'profile' | 'calendar' | 'holiday' | 'category' | 'extras' | 'notice';
 
 export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, commit, onOpen, onTest, toast }: { data: Data; initialTab?: SettingsTab; onClose: () => void; onSave: (settings: SettingsData, renames: Record<string, string>) => Promise<boolean>; commit: (data: Data, recovery?: boolean) => Promise<boolean>; onOpen: (id: string) => void; onTest: (event: Schedule) => void; toast: (message: string) => void }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
@@ -22,6 +22,8 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
   const prefs = draft.calendar ?? defaultCalendarPrefs();
   // 이전 상태에서 이어받아야 연달아 바꿀 때 앞의 변경이 덮어써지지 않는다.
   const changeCalendar = (values: Partial<CalendarPrefs>) => { setError(''); setDraft(previous => ({ ...previous, calendar: { ...(previous.calendar ?? defaultCalendarPrefs()), ...values } })); };
+  const extras = draft.extras ?? defaultExtras();
+  const changeExtras = (values: Partial<Extras>) => { setError(''); setDraft(previous => ({ ...previous, extras: { ...(previous.extras ?? defaultExtras()), ...values } })); };
   const changeProfile = (values: Partial<SettingsData['profile']>) => { setError(''); setDraft(previous => ({ ...previous, profile: { ...previous.profile, ...values } })); };
   const usage = (name: string) => data.tasks.filter(t => t.category === name).length;
 
@@ -89,6 +91,7 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
       <button role="tab" aria-selected={tab === 'calendar'} className={tab === 'calendar' ? 'active' : ''} onClick={() => setTab('calendar')}><CalendarDays size={16}/>달력</button>
       <button role="tab" aria-selected={tab === 'holiday'} className={tab === 'holiday' ? 'active' : ''} onClick={() => setTab('holiday')}><CalendarOff size={16}/>휴일</button>
       <button role="tab" aria-selected={tab === 'category'} className={tab === 'category' ? 'active' : ''} onClick={() => setTab('category')}><Tags size={16}/>분류</button>
+      <button role="tab" aria-selected={tab === 'extras'} className={tab === 'extras' ? 'active' : ''} onClick={() => setTab('extras')}><Puzzle size={16}/>추가 기능</button>
       <button role="tab" aria-selected={tab === 'notice'} className={tab === 'notice' ? 'active' : ''} onClick={() => setTab('notice')}><Bell size={16}/>알림</button>
     </div>
 
@@ -160,6 +163,15 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
         </div>)}
         <button type="button" className="text-button" onClick={() => update({ categories: [...draft.categories, { id: uid(), name: '', color: CATEGORY_COLORS[draft.categories.length % CATEGORY_COLORS.length] }] })}><Plus size={16}/>분류 추가</button>
         <p className="help">기본 분류 ‘{FALLBACK_CATEGORY}’는 새 일정을 만들 때 처음 선택되는 분류입니다.</p>
+      </>}
+
+      {tab === 'extras' && <>
+        <p className="help">평소에 자주 쓰는 기능만 골라 켜 두세요. 기본은 모두 꺼져 있습니다. 켜면 위쪽 ‘업무달력’ 옆에 아이콘이 생기고, 그 아이콘을 눌러 사용합니다.</p>
+        <label className="extra-row">
+          <input type="checkbox" checked={extras.todo} onChange={e => changeExtras({ todo: e.target.checked })}/>
+          <span className="extra-icon"><ListTodo size={18}/></span>
+          <span className="extra-text"><strong>할 일 목록</strong><small>해야 할 일과 완료한 일을 나눠 적어 두는 메모입니다. 순서를 바꿀 수 있고, 완료한 시각이 함께 남습니다.</small></span>
+        </label>
       </>}
 
       {error && <p className="form-error" role="alert">{error}</p>}

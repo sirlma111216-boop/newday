@@ -1,4 +1,4 @@
-import { CATEGORY_COLORS, defaultCalendarPrefs, STATUSES, TYPES, KEY, defaultSettings, safeLink, validDate, validateEvent, seedData, type CalendarPrefs, type CategoryDef, type Data, type SchoolHoliday, type Settings } from './model.ts';
+import { CATEGORY_COLORS, defaultCalendarPrefs, STATUSES, TYPES, KEY, defaultSettings, safeLink, validDate, validateEvent, seedData, type CalendarPrefs, type CategoryDef, type TodoItem, type Data, type SchoolHoliday, type Settings } from './model.ts';
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const string = (v: unknown, max = 10000): v is string => typeof v === 'string' && v.length <= max;
 const id = (v: unknown): v is string => string(v, 150) && /^[a-zA-Z0-9_-]+$/.test(v);
@@ -52,7 +52,9 @@ function parseSettings(input: unknown, unique: (v: unknown) => void): Settings {
     }
   }
 
-  return { profile, calendar: parseCalendarPrefs(input.calendar), categories, holidays, holidayKey: text(input.holidayKey, 500) };
+  const extrasInput = isObj(input.extras) ? input.extras : {};
+  const extras = { todo: extrasInput.todo === true };
+  return { profile, calendar: parseCalendarPrefs(input.calendar), extras, categories, holidays, holidayKey: text(input.holidayKey, 500) };
 }
 
 export function parseBackup(input: unknown): Data {
@@ -64,6 +66,11 @@ export function parseBackup(input: unknown): Data {
   for (const t of input.tasks) { assert(isObj(t), '업무 형식이 올바르지 않습니다.'); unique(t.id); assert(string(t.name, 300) && t.name.trim() && string(t.category, 50) && t.category.trim() && STATUSES.includes(t.status as never) && string(t.memo) && Array.isArray(t.links) && Array.isArray(t.checklist) && t.links.length <= 200 && t.checklist.length <= 500, '업무의 필수 값이 올바르지 않습니다.'); for (const l of t.links) { assert(isObj(l) && id(l.id) && string(l.name, 300) && string(l.url, 10000) && safeLink(l.url), '링크는 https: 또는 onenote: 주소여야 합니다.'); unique(l.id); } for (const c of t.checklist) { assert(isObj(c) && id(c.id) && string(c.text, 1000) && c.text.trim() && typeof c.done === 'boolean', '체크리스트 형식이 올바르지 않습니다.'); unique(c.id); } }
   const taskIds = new Set(input.tasks.map((t: Record<string, unknown>) => t.id));
   for (const e of input.events) { assert(isObj(e), '일정 형식이 올바르지 않습니다.'); unique(e.id); assert(string(e.title, 300) && taskIds.has(e.taskId) && TYPES.includes(e.type as never) && typeof e.allDay === 'boolean' && Array.isArray(e.reminders) && e.reminders.every((r: unknown) => [0, 60, 1440, 10080].includes(r as number)) && new Set(e.reminders).size === e.reminders.length && ['start', 'end'].includes(e.reminderBase as string) && finite(e.revision) && Number.isInteger(e.revision) && finite(e.createdAt) && finite(e.reminderSince), '일정의 필수 값 또는 연결된 업무가 올바르지 않습니다.'); assert(!validateEvent(e as unknown as Data['events'][number]), '일정의 제목·날짜·시간 범위를 확인해 주세요.'); }
+  const todos: TodoItem[] = [];
+  if (Array.isArray(input.todos)) {
+    assert(input.todos.length <= 2000, '할 일이 너무 많습니다.');
+    for (const t of input.todos) { assert(isObj(t) && id(t.id) && string(t.text, 1000) && t.text.trim() && typeof t.done === 'boolean' && finite(t.createdAt) && finite(t.doneAt), '할 일 형식이 올바르지 않습니다.'); unique(t.id); todos.push({ id: t.id, text: t.text, done: t.done, createdAt: Number(t.createdAt), doneAt: Number(t.doneAt) }); }
+  }
   const eventIds = new Set(input.events.map((e: Record<string, unknown>) => e.id)); const noticeIds = new Set();
   for (const n of input.notices) { assert(isObj(n) && string(n.id, 300) && !noticeIds.has(n.id) && eventIds.has(n.eventId) && string(n.title, 500) && finite(n.dueAt) && typeof n.read === 'boolean', '알림 데이터가 올바르지 않습니다.'); noticeIds.add(n.id); }
   assert(input.delivered.every((v: unknown) => string(v, 300)) && new Set(input.delivered).size === input.delivered.length, '알림 발송 기록이 올바르지 않습니다.');
@@ -76,7 +83,7 @@ export function parseBackup(input: unknown): Data {
     known.add(task.category);
     settings.categories.push({ id: `restored-${settings.categories.length}`, name: task.category, color: CATEGORY_COLORS[settings.categories.length % CATEGORY_COLORS.length] });
   }
-  return { version: 1, tasks: data.tasks.map(t => ({ id: t.id, name: t.name, category: t.category, status: t.status, memo: t.memo, links: t.links.map(l => ({ id: l.id, name: l.name, url: l.url })), checklist: t.checklist.map(c => ({ id: c.id, text: c.text, done: c.done })) })), events: data.events.map(e => ({ id: e.id, title: e.title, taskId: e.taskId, type: e.type, start: e.start, end: e.end, allDay: e.allDay, startTime: e.startTime, endTime: e.endTime, reminders: [...e.reminders], reminderBase: e.reminderBase, revision: e.revision, createdAt: e.createdAt, reminderSince: e.reminderSince })), notices: data.notices.map(n => ({ id: n.id, eventId: n.eventId, title: n.title, dueAt: n.dueAt, read: n.read })), delivered: [...data.delivered], settings };
+  return { version: 1, tasks: data.tasks.map(t => ({ id: t.id, name: t.name, category: t.category, status: t.status, memo: t.memo, links: t.links.map(l => ({ id: l.id, name: l.name, url: l.url })), checklist: t.checklist.map(c => ({ id: c.id, text: c.text, done: c.done })) })), events: data.events.map(e => ({ id: e.id, title: e.title, taskId: e.taskId, type: e.type, start: e.start, end: e.end, allDay: e.allDay, startTime: e.startTime, endTime: e.endTime, reminders: [...e.reminders], reminderBase: e.reminderBase, revision: e.revision, createdAt: e.createdAt, reminderSince: e.reminderSince })), notices: data.notices.map(n => ({ id: n.id, eventId: n.eventId, title: n.title, dueAt: n.dueAt, read: n.read })), delivered: [...data.delivered], todos, settings };
 }
 export function saveData(data: Data) { localStorage.setItem(KEY, JSON.stringify(data)); }
-export function loadData(): { data: Data; error: string } { try { const saved = localStorage.getItem(KEY); if (saved !== null) return { data: parseBackup(JSON.parse(saved)), error: '' }; const data = seedData(); saveData(data); return { data, error: '' }; } catch { return { data: { version: 1, tasks: [], events: [], notices: [], delivered: [], settings: defaultSettings() }, error: '브라우저 데이터를 읽거나 저장할 수 없습니다. 기존 저장 데이터는 덮어쓰지 않았습니다. 백업을 확인한 뒤 가져오기로 복구해 주세요.' }; } }
+export function loadData(): { data: Data; error: string } { try { const saved = localStorage.getItem(KEY); if (saved !== null) return { data: parseBackup(JSON.parse(saved)), error: '' }; const data = seedData(); saveData(data); return { data, error: '' }; } catch { return { data: { version: 1, tasks: [], events: [], notices: [], delivered: [], todos: [], settings: defaultSettings() }, error: '브라우저 데이터를 읽거나 저장할 수 없습니다. 기존 저장 데이터는 덮어쓰지 않았습니다. 백업을 확인한 뒤 가져오기로 복구해 주세요.' }; } }
