@@ -567,6 +567,9 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
 .todo-when { font-size: 12px; color: var(--clay-muted); white-space: nowrap; flex-shrink: 0; }
 .todo-order { display: flex; flex-shrink: 0; }
 .todo-order .icon-button { padding: 4px; }
+.todo-place { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: -6px 0 14px; font-size: 13px; color: var(--clay-muted); }
+.todo-place button { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 4px 10px; font-size: 13px; background: transparent; border-radius: var(--clay-radius-pill); }
+.todo-place button[aria-pressed=true] { background: var(--clay-surface-card); border-color: var(--clay-ink); color: var(--clay-ink); font-weight: 500; }
 .todo-item .icon-button { color: var(--clay-muted); }
 .todo-item .icon-button:hover { color: var(--clay-ink); background: var(--clay-canvas); }
 @media (max-width: 699px) {
@@ -633,6 +636,16 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
 .panel-content { padding: 16px; }
 .floating-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--clay-canvas); }
 .floating-foot button { min-height: 42px; padding-inline: 18px; }
+/* 가장자리(좌·우·아래)와 아래 모서리를 끌어 크기를 바꾼다. 위쪽은 제목 줄 끌기에 쓴다. */
+.floating-resize { position: absolute; z-index: 2; touch-action: none; }
+.floating-resize.e, .floating-resize.w { top: 56px; bottom: 18px; width: 6px; cursor: ew-resize; }
+.floating-resize.e { right: 0; }
+.floating-resize.w { left: 0; }
+.floating-resize.s { left: 18px; right: 18px; bottom: 0; height: 6px; cursor: ns-resize; }
+.floating-resize.se, .floating-resize.sw { bottom: 0; width: 18px; height: 18px; }
+.floating-resize.se { right: 0; cursor: nwse-resize; background: linear-gradient(135deg, transparent 0 55%, var(--clay-muted) 55% 61%, transparent 61% 72%, var(--clay-muted) 72% 78%, transparent 78%); opacity: .55; }
+.floating-resize.se:hover { opacity: 1; }
+.floating-resize.sw { left: 0; cursor: nesw-resize; }
 /* 좁은 화면에서는 끌어 옮기기가 어려우므로 아래쪽에 붙인 창으로 연다. */
 .floating-panel.sheet { left: 0; right: 0; bottom: 0; width: 100%; max-height: 86vh; border-radius: var(--clay-radius-lg) var(--clay-radius-lg) 0 0; border-bottom: 0; }
 .floating-panel.sheet .floating-head { cursor: default; }

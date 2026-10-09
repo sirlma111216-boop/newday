@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { weeklyDates, validateRepeat, isBand, buildShareSnapshot, newShareCode, formatShareCode, normalizeShareCode, validShareCode, blankTodo, moveTodo, splitTodos, toggleTodo, defaultSettings, defaultCalendarPrefs, calendarVars, weekdayLabels, weekdayOf, DENSITY_HEIGHT, FONT_SCALE, shiftMonth, fallbackCategory, schoolHolidayOn, validateSchoolHoliday, addDays, calendarDays, seedData, weekSegments, dayDiff, seoulToday, blankEvent, blankTask, dueNotices, eventTimestamp, validateEvent, safeLink, filteredEvents, searchEvents, cancelPending, type Data } from '../src/model.ts';
+import { addTodo, weeklyDates, validateRepeat, isBand, buildShareSnapshot, newShareCode, formatShareCode, normalizeShareCode, validShareCode, blankTodo, moveTodo, splitTodos, toggleTodo, defaultSettings, defaultCalendarPrefs, calendarVars, weekdayLabels, weekdayOf, DENSITY_HEIGHT, FONT_SCALE, shiftMonth, fallbackCategory, schoolHolidayOn, validateSchoolHoliday, addDays, calendarDays, seedData, weekSegments, dayDiff, seoulToday, blankEvent, blankTask, dueNotices, eventTimestamp, validateEvent, safeLink, filteredEvents, searchEvents, cancelPending, type Data } from '../src/model.ts';
 import { parseBackup, loadData, saveData } from '../src/storage.ts';
 test('서울 날짜는 UTC와 구별되며 윤년과 월 경계에서 날짜 계산이 정확하다', () => { assert.equal(seoulToday(new Date('2026-09-12T16:00:00Z')), '2026-09-13'); assert.equal(addDays('2024-02-28', 1), '2024-02-29'); assert.equal(addDays('2026-12-31', 1), '2027-01-01'); assert.equal(dayDiff('2026-10-02', '2026-09-29'), 3); });
 test('월간은 일요일 시작, 토요일 종료이며 마지막 날짜까지 포함한다', () => { for (const month of ['2026-02-01', '2026-05-01', '2026-09-01']) { const d = calendarDays(month); assert.equal(d.length % 7, 0); assert.equal(new Date(d[0] + 'T00:00Z').getUTCDay(), 0); assert.equal(new Date(d.at(-1)! + 'T00:00Z').getUTCDay(), 6); } });
@@ -241,6 +241,15 @@ test('할 일은 직접 정한 순서를 지키고 완료한 일은 최근 것�
   todos = toggleTodo(todos, 'todo-0', at(30));
   assert.equal(todos.find(t => t.id === 'todo-0')!.doneAt, 0);
   assert.ok(splitTodos(todos).open.some(t => t.text === '첫째'));
+
+  // 새 할 일은 고른 위치(맨 위·맨 아래)에 들어가고 완료한 일은 그대로 남는다.
+  const doneBefore = splitTodos(todos).done.map(t => t.id);
+  const top = addTodo(todos, { ...blankTodo('새 위'), id: 'todo-top' }, true);
+  assert.equal(splitTodos(top).open[0].id, 'todo-top');
+  assert.deepEqual(splitTodos(top).done.map(t => t.id), doneBefore);
+  const bottom = addTodo(todos, { ...blankTodo('새 아래'), id: 'todo-bottom' });
+  assert.equal(splitTodos(bottom).open.at(-1)!.id, 'todo-bottom');
+  assert.equal(bottom.length, todos.length + 1);
 
   // 완료한 일의 순서를 바꿔 달라고 해도 해야 할 일 순서는 건드리지 않는다.
   const before = splitTodos(todos).open.map(t => t.text);

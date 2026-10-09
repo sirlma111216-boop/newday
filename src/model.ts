@@ -14,7 +14,7 @@ export type Profile = { name: string; school: string; department: string; note: 
 export type SchoolHoliday = { id: string; name: string; start: string; end: string };
 export type CategoryDef = { id: string; name: string; color: string };
 export type CalendarPrefs = { weekStart: 0 | 1; density: 'compact' | 'normal' | 'roomy'; fontScale: 'small' | 'normal' | 'large'; fontFamily: 'default' | 'system' | 'malgun' | 'nanum'; maxPerCell: number; saturdayColor: 'blue' | 'red'; defaultView: 'auto' | 'calendar' | 'list' };
-export type Extras = { todo: boolean; qr: boolean };
+export type Extras = { todo: boolean; qr: boolean; todoOnTop: boolean };
 export type TodoItem = { id: string; text: string; done: boolean; createdAt: number; doneAt: number };
 export type Settings = { profile: Profile; calendar: CalendarPrefs; extras: Extras; categories: CategoryDef[]; holidays: SchoolHoliday[]; holidayKey: string };
 export type Data = { version: 1; tasks: Task[]; events: Schedule[]; notices: Notice[]; delivered: string[]; todos: TodoItem[]; settings: Settings };
@@ -66,7 +66,7 @@ export const DEFAULT_CATEGORIES: CategoryDef[] = [
   { id: 'cat-none', name: FALLBACK_CATEGORY, color: '#e0dfdb' },
 ];
 export function defaultCalendarPrefs(): CalendarPrefs { return { weekStart: 0, density: 'normal', fontScale: 'normal', fontFamily: 'default', maxPerCell: 3, saturdayColor: 'blue', defaultView: 'auto' }; }
-export function defaultExtras(): Extras { return { todo: false, qr: false }; }
+export function defaultExtras(): Extras { return { todo: false, qr: false, todoOnTop: false }; }
 export function defaultSettings(): Settings { return { profile: { name: '', school: '', department: '', note: '' }, calendar: defaultCalendarPrefs(), extras: defaultExtras(), categories: DEFAULT_CATEGORIES.map(c => ({ ...c })), holidays: [], holidayKey: '' }; }
 export function categoryColor(settings: Settings, name: string) { return settings.categories.find(c => c.name === name)?.color ?? '#e0dfdb'; }
 // --cat-* 를 직접 넣어 .cat-0 같은 고정 클래스 없이도 같은 배색을 쓴다.
@@ -128,6 +128,11 @@ export function splitTodos(todos: TodoItem[]) {
     done: todos.filter(t => t.done).sort((a, b) => b.doneAt - a.doneAt || b.createdAt - a.createdAt),
   };
 }
+/** 새 할 일을 해야 할 일의 맨 위나 맨 아래에 넣는다. 완료한 일은 뒤쪽에 그대로 둔다. */
+export function addTodo(todos: TodoItem[], item: TodoItem, onTop = false) {
+  const open = todos.filter(t => !t.done);
+  return [...(onTop ? [item, ...open] : [...open, item]), ...todos.filter(t => t.done)];
+}
 /** 해야 할 일 안에서 from 번째를 to 번째 자리로 옮긴다. 완료한 일의 순서는 건드리지 않는다. */
 export function moveTodo(todos: TodoItem[], id: string, to: number) {
   const open = todos.filter(t => !t.done);
@@ -181,7 +186,7 @@ export function buildShareSnapshot(data: Data, categories: string[]): Data {
     settings: {
       profile: { name: '', school: '', department: '', note: '' },
       calendar: { ...data.settings.calendar },
-      extras: { todo: false, qr: false },
+      extras: defaultExtras(),
       categories: data.settings.categories.filter(c => allowed.has(c.name)).map(c => ({ ...c })),
       holidays: data.settings.holidays.map(h => ({ ...h })),
       holidayKey: '',

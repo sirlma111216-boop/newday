@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "dev": "vite --host 127.0.0.1 --port 5173 --strictPort --configLoader runner",
+    "dev": "vite --configLoader runner",
     "build": "tsc -b && vite build --configLoader runner",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort --configLoader runner"

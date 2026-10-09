@@ -1,7 +1,7 @@
-import { useRef, useState, type DragEvent } from 'react';
-import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, ListTodo, RotateCcw } from 'lucide-react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, ListTodo, RotateCcw, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
 import { FloatingPanel } from './FloatingPanel';
-import { blankTodo, moveTodo, splitTodos, todoDoneLabel, toggleTodo, type Data, type TodoItem } from './model';
+import { addTodo, blankTodo, defaultExtras, moveTodo, splitTodos, todoDoneLabel, toggleTodo, type Data, type TodoItem } from './model';
 
 type Tab = 'open' | 'done';
 
@@ -11,14 +11,24 @@ export function TodoDialog({ data, onClose, commit, toast }: { data: Data; onClo
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const dragId = useRef<string | null>(null);
+  const added = useRef<string | null>(null);
   const todos = data.todos ?? [];
   const { open, done } = splitTodos(todos);
+  const extras = data.settings.extras ?? defaultExtras();
+  const onTop = extras.todoOnTop === true;
 
-  async function save(next: TodoItem[], message = '') {
+  // 방금 넣은 할 일이 창 밖에 있으면 보이는 곳까지 굴려 준다.
+  useEffect(() => {
+    if (!added.current) return;
+    document.querySelector(`[data-todo-id="${added.current}"]`)?.scrollIntoView({ block: 'nearest' });
+    added.current = null;
+  }, [todos]);
+
+  async function save(next: TodoItem[], message = '', settings = data.settings) {
     if (busy) return false;
     setBusy(true); setError('');
     try {
-      if (await commit({ ...data, todos: next })) { if (message) toast(message); return true; }
+      if (await commit({ ...data, todos: next, settings })) { if (message) toast(message); return true; }
       setError('저장하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.');
       return false;
     } finally { setBusy(false); }
@@ -28,8 +38,16 @@ export function TodoDialog({ data, onClose, commit, toast }: { data: Data; onClo
     const value = text.trim();
     if (!value) return;
     if (todos.length >= 2000) { setError('할 일은 2000개까지 저장할 수 있습니다.'); return; }
-    // 새 할 일은 맨 아래에 붙이고, 완료한 일은 뒤쪽에 그대로 둔다.
-    if (await save([...open, blankTodo(value), ...done])) setText('');
+    const item = blankTodo(value);
+    added.current = item.id;
+    if (await save(addTodo(todos, item, onTop))) setText('');
+    else added.current = null;
+  }
+
+  // 넣는 위치는 설정에 함께 저장해 다른 기기에서도 같게 쓴다.
+  function place(top: boolean) {
+    if (top === onTop) return;
+    void save(todos, '', { ...data.settings, extras: { ...extras, todoOnTop: top } });
   }
 
   function drop(e: DragEvent, targetId: string) {
@@ -42,6 +60,7 @@ export function TodoDialog({ data, onClose, commit, toast }: { data: Data; onClo
 
   const row = (item: TodoItem, index: number) => <li
     key={item.id}
+    data-todo-id={item.id}
     className={'todo-item ' + (item.done ? 'done' : '')}
     draggable={!item.done}
     onDragStart={() => { dragId.current = item.id; }}
@@ -78,6 +97,11 @@ export function TodoDialog({ data, onClose, commit, toast }: { data: Data; onClo
             onChange={e => setText(e.currentTarget.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void add(); } }}/>
           <button type="button" className="primary" disabled={busy || !text.trim()} onClick={() => void add()}><Plus size={16}/>추가</button>
+        </div>
+        <div className="todo-place" role="group" aria-label="새 할 일을 넣을 위치">
+          <span>새 할 일은</span>
+          <button type="button" aria-pressed={onTop} disabled={busy} onClick={() => place(true)}><ArrowUpToLine size={14}/>맨 위에</button>
+          <button type="button" aria-pressed={!onTop} disabled={busy} onClick={() => place(false)}><ArrowDownToLine size={14}/>맨 아래에</button>
         </div>
         {open.length
           ? <ul className="todo-list">{open.map(row)}</ul>

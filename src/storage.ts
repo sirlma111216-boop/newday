@@ -53,7 +53,7 @@ function parseSettings(input: unknown, unique: (v: unknown) => void): Settings {
   }
 
   const extrasInput = isObj(input.extras) ? input.extras : {};
-  const extras = { todo: extrasInput.todo === true, qr: extrasInput.qr === true };
+  const extras = { todo: extrasInput.todo === true, qr: extrasInput.qr === true, todoOnTop: extrasInput.todoOnTop === true };
   return { profile, calendar: parseCalendarPrefs(input.calendar), extras, categories, holidays, holidayKey: text(input.holidayKey, 500) };
 }
 
