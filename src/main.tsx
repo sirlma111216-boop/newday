@@ -4,3 +4,4 @@ import './styles.css';
 import './clay.css';
 import './cloud.css';
 createRoot(document.getElementById('root')!).render(<App />);
+import './stores/stores.css';

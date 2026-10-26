@@ -1,6 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // 앱 목록과 암호화 계정/API 키 저장소. 로그인한 본인만 읽고 쓴다.
+    match /users/{userId}/{storeName}/main {
+      function allowedStore() { return storeName in ['apps', 'vault']; }
+      function storeOwner() { return request.auth != null && request.auth.uid == userId; }
+      function validStore() {
+        return request.resource.data.keys().hasOnly(['payload', 'revision', 'updatedAt'])
+          && request.resource.data.payload is string
+          && request.resource.data.payload.size() <= 900000
+          && request.resource.data.revision is int
+          && request.resource.data.updatedAt == request.time;
+      }
+      allow read: if allowedStore() && storeOwner();
+      allow create: if allowedStore() && storeOwner() && validStore() && request.resource.data.revision == 1;
+      allow update: if allowedStore() && storeOwner() && validStore()
+        && request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
+    }
+    // Newday 출결노트: 일정과 별도 문서, 로그인한 본인만 접근.
+    match /users/{userId}/attendance/main {
+      function owner() { return request.auth != null && request.auth.uid == userId; }
+      function validAttendance() {
+        return request.resource.data.keys().hasOnly(['payload', 'revision', 'updatedAt'])
+          && request.resource.data.payload is string
+          && request.resource.data.payload.size() <= 900000
+          && request.resource.data.revision is int
+          && request.resource.data.updatedAt == request.time;
+      }
+      allow read: if owner();
+      allow create: if owner() && validAttendance() && request.resource.data.revision == 1;
+      allow update: if owner() && validAttendance()
+        && request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
+    }
     match /users/{userId}/calendar/main {
       function owner() {
         // 로그인한 본인의 경로에만 접근할 수 있습니다.

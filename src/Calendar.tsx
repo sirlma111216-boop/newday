@@ -69,6 +69,16 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
 
   const locked = readOnly;
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 699px)').matches);
+  const [zoomed, setZoomed] = useState(() => (window.visualViewport?.scale ?? 1) >= 1.5);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    // 확대 경계에서 글씨가 반복해서 나타났다 사라지지 않도록 여유를 둔다.
+    const syncZoom = () => setZoomed(previous => viewport.scale >= (previous ? 1.3 : 1.5));
+    viewport.addEventListener('resize', syncZoom);
+    syncZoom();
+    return () => viewport.removeEventListener('resize', syncZoom);
+  }, []);
   useEffect(() => {
     const query = window.matchMedia('(max-width: 699px)');
     const sync = () => setCompact(query.matches);
@@ -91,7 +101,7 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
     } catch { /* Ignore unrelated drags. */ }
   };
 
-  return <div className="calendar">
+  return <div className={'calendar' + (zoomed ? ' zoomed' : '')}>
     <div className="weekdays">{weekdayLabels(prefs.weekStart).map((day, i) => { const w = (i + prefs.weekStart) % 7; return <span key={day} className={w === 0 ? 'sun' : w === 6 ? 'sat' : ''}>{day}</span>; })}</div>
     {Array.from({ length: days.length / 7 }, (_, weekIndex) => {
       const week = days.slice(weekIndex * 7, weekIndex * 7 + 7);
@@ -105,7 +115,7 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
           {(publicName || school) && <span className={'holiday-name ' + (publicName ? 'public' : '')} title={[publicName, school?.name].filter(Boolean).join(' · ')}>{publicName || school!.name}</span>}
         </div>; })}</div>
 
-        <div className="event-grid" style={bands.length ? { paddingBottom: compact ? `calc(${Math.max(...bands.map(s => s.lane)) + 1} * (22px * var(--cal-font-scale, 1) + 2px) + 6px)` : (Math.max(...bands.map(s => s.lane)) + 1) * 17 + 9 } : undefined}>{segments.map(segment => {
+        <div className="event-grid" style={bands.length ? { paddingBottom: compact ? 6 : (Math.max(...bands.map(s => s.lane)) + 1) * 17 + 9 } : undefined}>{segments.map(segment => {
           const task = data.tasks.find(item => item.id === segment.event.taskId)!;
           const period = segment.event.start !== segment.event.end;
           const deadline = deadlineLabel(segment.event);
