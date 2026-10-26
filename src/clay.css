@@ -506,13 +506,16 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
   .today-label { display: none; }
   .holiday-name { font-size: calc(9px * var(--cal-font-scale, 1)); line-height: 1.2; }
 
-  /* 칸이 좁아 제목이 들어갈 자리가 없다. 분류 색 막대만 보여 주고, 날짜를 누르면 그날 목록을 연다. */
-  .event-grid { padding: 30px 0 6px; grid-auto-rows: 7px; gap: 3px 0; }
-  .event { border-radius: 2px; margin-inline: 2px; min-height: 7px; }
-  .event-title, .event-time, .event-dday { display: none; }
-  .event.single { background: var(--cat-border); }
+  /* 좁은 칸에서도 색 막대 안에 제목을 표시하고, 누르면 상세를 연다. */
+  .event-grid { padding: 30px 0 6px; grid-auto-rows: calc(22px * var(--cal-font-scale, 1)); gap: 3px 0; }
+  .event { border-radius: 3px; margin-inline: 2px; min-height: 22px; background: var(--cat-bg); color: var(--clay-ink); }
+  .event-title { display: block; padding: 0 3px; min-height: 22px; font-size: calc(11px * var(--cal-font-scale, 1)); line-height: calc(22px * var(--cal-font-scale, 1)); }
+  .event-time, .event-dday { display: none; }
+  .event-title:has(.event-dday) { padding-right: 3px; }
+  .event.period .event-title { line-height: calc(22px * var(--cal-font-scale, 1)); }
+  .event.single { background: var(--cat-bg); }
   .event.single:before { display: none; }
-  .event.period { border-top-width: 7px; padding-top: 0; }
+  .event.period { border-top: 0; padding-top: 0; background: var(--cat-bg); }
   .resize-handle { display: none; }
   .more-events { font-size: 10px; line-height: 12px; padding: 0 4px; color: var(--clay-muted); }
 }
@@ -619,8 +622,8 @@ footer { color: var(--clay-muted); background: var(--clay-canvas); font-size: 12
 .band.continues { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
 .week.has-bands .event-grid { padding-bottom: 26px; }
 @media (max-width: 699px) {
-  .band-grid { grid-auto-rows: 7px; bottom: 2px; }
-  .band { height: 7px; padding: 0; font-size: 0; }
+  .band-grid { grid-auto-rows: calc(22px * var(--cal-font-scale, 1)); bottom: 2px; }
+  .band { height: calc(22px * var(--cal-font-scale, 1)); padding: 0 3px; font-size: calc(11px * var(--cal-font-scale, 1)); line-height: calc(22px * var(--cal-font-scale, 1)); opacity: 1; }
   .week.has-bands .event-grid { padding-bottom: 16px; }
 }
 

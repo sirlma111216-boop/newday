@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
-import { X } from 'lucide-react';
 
 type Spot = { x: number; y: number };
 type Size = { w: number; h: number };
@@ -90,10 +89,8 @@ export function FloatingPanel({ name, title, icon, onClose, children, footer }: 
 
   const startDrag = (e: PointerEvent<HTMLDivElement>) => {
     if (compact || e.button !== 0 || !ref.current) return;
-    // 제목 줄의 버튼(닫기)은 끌기에서 뺀다. 포인터를 제목 줄이 붙잡으면 버튼의 클릭이 사라진다.
-    if ((e.target as HTMLElement).closest('button')) return;
     const box = ref.current.getBoundingClientRect();
-    grab.current ={ dx: e.clientX - box.left, dy: e.clientY - box.top };
+    grab.current = { dx: e.clientX - box.left, dy: e.clientY - box.top };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const onDrag = (e: PointerEvent<HTMLDivElement>) => {
@@ -152,7 +149,6 @@ export function FloatingPanel({ name, title, icon, onClose, children, footer }: 
       onDoubleClick={edge === 'se' ? resetSize : undefined}/>)}
     <div className="floating-head" onPointerDown={startDrag} onPointerMove={onDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
       <h2>{icon}{title}</h2>
-      <button type="button" className="icon-button" aria-label="닫기" onClick={onClose}><X size={20}/></button>
     </div>
     <div className="floating-body">{children}</div>
     {footer && <div className="floating-foot">{footer}</div>}

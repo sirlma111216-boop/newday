@@ -48,7 +48,7 @@ export function useCloudData(uid: string) {
         if (!active) return;
         if ('Notification' in window && Notification.permission === 'granted') {
           for (const n of notices.filter(n => Date.now() - n.dueAt < 120000)) {
-            try { new Notification('업무달력', { body: n.title, tag: n.id }); } catch { /* Shared in-app notice remains available. */ }
+            try { new Notification('Newday', { body: n.title, tag: n.id }); } catch { /* Shared in-app notice remains available. */ }
           }
         }
       } catch (issue) { retryAfter = Date.now() + 30000; if (active) setError(cloudError(issue)); }

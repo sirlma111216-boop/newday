@@ -105,7 +105,7 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
           {(publicName || school) && <span className={'holiday-name ' + (publicName ? 'public' : '')} title={[publicName, school?.name].filter(Boolean).join(' · ')}>{publicName || school!.name}</span>}
         </div>; })}</div>
 
-        <div className="event-grid">{segments.filter(segment => segment.lane < prefs.maxPerCell).map(segment => {
+        <div className="event-grid" style={bands.length ? { paddingBottom: compact ? `calc(${Math.max(...bands.map(s => s.lane)) + 1} * (22px * var(--cal-font-scale, 1) + 2px) + 6px)` : (Math.max(...bands.map(s => s.lane)) + 1) * 17 + 9 } : undefined}>{segments.map(segment => {
           const task = data.tasks.find(item => item.id === segment.event.taskId)!;
           const period = segment.event.start !== segment.event.end;
           const deadline = deadlineLabel(segment.event);
@@ -120,10 +120,7 @@ export function Calendar({ data, settings, holidays, events, month, open, quickA
             {period && !segment.continues && !locked && <span draggable role="button" tabIndex={0} aria-label={`${segment.event.title} 종료일 변경`} title="끌어서 종료일 변경 · Enter로 상세 편집" className="resize-handle" onClick={e => { e.stopPropagation(); open(segment.event.id); }} onKeyDown={e => { if (e.key === 'Enter') open(segment.event.id); }} onDragStart={e => drag(e, segment.event.id, segment.event.end, true)}>⋮</span>}
           </div>;
         })}
-        {week.map((date, column) => {
-          const hidden = segments.filter(segment => segment.lane >= prefs.maxPerCell && segment.start <= column && segment.start + segment.span > column).length;
-          return hidden > 0 && <button key={date} className="more-events" style={{ gridColumn: column + 1, gridRow: prefs.maxPerCell + 1 }} onClick={() => showDay(date)}>외 {hidden}개</button>;
-        })}</div>
+        </div>
 
         {bands.length > 0 && <div className="band-grid">{bands.map(segment => { const task = data.tasks.find(item => item.id === segment.event.taskId)!; return <button key={segment.event.id} className={'band ' + (segment.continued ? 'continued' : '') + (segment.continues ? ' continues' : '')} style={{ ...categoryStyleOf(settings, task.category), gridColumn: `${segment.start + 1} / span ${segment.span}`, gridRow: segment.lane + 1 }} title={`${segment.event.title} · ${segment.event.start}~${segment.event.end}`} onClick={() => open(segment.event.id)}><span>{segment.event.title}</span></button>; })}</div>}
 

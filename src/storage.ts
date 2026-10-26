@@ -58,7 +58,7 @@ function parseSettings(input: unknown, unique: (v: unknown) => void): Settings {
 }
 
 export function parseBackup(input: unknown): Data {
-  assert(isObj(input) && input.version === 1 && Array.isArray(input.tasks) && Array.isArray(input.events) && Array.isArray(input.notices) && Array.isArray(input.delivered), '업무달력 버전 1 백업 파일이 아닙니다.');
+  assert(isObj(input) && input.version === 1 && Array.isArray(input.tasks) && Array.isArray(input.events) && Array.isArray(input.notices) && Array.isArray(input.delivered), 'Newday 버전 1 백업 파일이 아닙니다.');
   assert(input.tasks.length <= 10000 && input.events.length <= 20000 && input.notices.length <= 100000 && input.delivered.length <= 100000, '백업 데이터가 너무 큽니다.');
   const ids = new Set<string>();
   const unique = (v: unknown) => { assert(id(v) && !ids.has(v), '중복되거나 올바르지 않은 식별자가 있습니다.'); ids.add(v); };

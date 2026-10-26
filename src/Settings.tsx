@@ -109,13 +109,12 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
       {tab === 'calendar' && <>
         <p className="help">달력을 보기 편한 모양으로 맞춰 보세요. 저장하면 이 기기와 계정 모두에 적용됩니다.</p>
         <Choice label="주 시작 요일" value={prefs.weekStart} onPick={v => changeCalendar({ weekStart: v })} options={[[0, '일요일'], [1, '월요일']]}/>
-        <Choice label="칸 높이" value={prefs.density} onPick={v => changeCalendar({ density: v })} options={[['compact', '좁게'], ['normal', '보통'], ['roomy', '넓게']]}/>
+        <Choice label="기본 칸 높이" value={prefs.density} onPick={v => changeCalendar({ density: v })} options={[['compact', '좁게'], ['normal', '보통'], ['roomy', '넓게']]}/>
         <Choice label="글자 크기" value={prefs.fontScale} onPick={v => changeCalendar({ fontScale: v })} options={[['small', '작게'], ['normal', '보통'], ['large', '크게']]}/>
         <Choice label="글꼴" value={prefs.fontFamily} onPick={v => changeCalendar({ fontFamily: v })} options={[['default', '기본'], ['system', '시스템'], ['malgun', '맑은 고딕'], ['nanum', '나눔고딕']]}/>
-        <Choice label="한 칸에 표시" value={prefs.maxPerCell} onPick={v => changeCalendar({ maxPerCell: v })} options={[[2, '2개'], [3, '3개'], [4, '4개'], [5, '5개'], [6, '6개']]}/>
         <Choice label="토요일 색" value={prefs.saturdayColor} onPick={v => changeCalendar({ saturdayColor: v })} options={[['blue', '파란색'], ['red', '빨간색']]}/>
         <Choice label="기본 보기" value={prefs.defaultView} onPick={v => changeCalendar({ defaultView: v })} options={[['auto', '자동'], ['calendar', '월간'], ['list', '목록']]}/>
-        <p className="help">‘자동’은 화면이 좁으면 목록, 넓으면 월간으로 엽니다. 일요일과 공휴일은 항상 빨간색으로 표시합니다.</p>
+        <p className="help">일정이 많으면 칸 높이가 자동으로 늘어나 모든 일정을 표시합니다. ‘자동’은 화면이 좁으면 목록, 넓으면 월간으로 엽니다. 일요일과 공휴일은 항상 빨간색으로 표시합니다.</p>
       </>}
 
       {tab === 'holiday' && <>
@@ -168,7 +167,7 @@ export function SettingsDialog({ data, initialTab = 'profile', onClose, onSave, 
       </>}
 
       {tab === 'extras' && <>
-        <p className="help">평소에 자주 쓰는 기능만 골라 켜 두세요. 기본은 모두 꺼져 있습니다. 켜면 위쪽 ‘업무달력’ 옆에 아이콘이 생기고, 그 아이콘을 눌러 사용합니다.</p>
+        <p className="help">평소에 자주 쓰는 기능만 골라 켜 두세요. 기본은 모두 꺼져 있습니다. 켜면 위쪽 ‘Newday’ 옆에 아이콘이 생기고, 그 아이콘을 눌러 사용합니다.</p>
         <label className="extra-row">
           <input type="checkbox" checked={extras.todo} onChange={e => changeExtras({ todo: e.target.checked })}/>
           <span className="extra-icon"><ListTodo size={18}/></span>

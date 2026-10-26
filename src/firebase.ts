@@ -87,7 +87,7 @@ export async function readShare(code: string): Promise<{ label: string; data: Da
   if (!snap.exists()) throw new Error('그런 공유 번호가 없습니다. 번호를 다시 확인해 주세요.');
   const value = snap.data() as Record<string, unknown>;
   if (typeof value.payload !== 'string') throw new Error('공유 데이터 형식이 올바르지 않습니다.');
-  return { label: typeof value.label === 'string' ? value.label : '공유된 업무달력', data: parseBackup(JSON.parse(value.payload)) };
+  return { label: typeof value.label === 'string' ? value.label : '공유된 Newday', data: parseBackup(JSON.parse(value.payload)) };
 }
 
 export async function deleteShare(code: string) { await deleteDoc(shareRef(code)); }

@@ -195,7 +195,7 @@ export function buildShareSnapshot(data: Data, categories: string[]): Data {
 }
 export function shareLabel(data: Data) {
   const name = data.settings.profile.name.trim();
-  return name ? `${name}님의 업무달력` : '공유된 업무달력';
+  return name ? `${name}님의 Newday` : '공유된 Newday';
 }
 
 // ── 반복 일정과 긴 기간 ────────────────────────────────
