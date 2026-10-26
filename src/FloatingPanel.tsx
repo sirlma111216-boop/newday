@@ -90,8 +90,10 @@ export function FloatingPanel({ name, title, icon, onClose, children, footer }: 
 
   const startDrag = (e: PointerEvent<HTMLDivElement>) => {
     if (compact || e.button !== 0 || !ref.current) return;
+    // 제목 줄의 버튼(닫기)은 끌기에서 뺀다. 포인터를 제목 줄이 붙잡으면 버튼의 클릭이 사라진다.
+    if ((e.target as HTMLElement).closest('button')) return;
     const box = ref.current.getBoundingClientRect();
-    grab.current = { dx: e.clientX - box.left, dy: e.clientY - box.top };
+    grab.current ={ dx: e.clientX - box.left, dy: e.clientY - box.top };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const onDrag = (e: PointerEvent<HTMLDivElement>) => {
